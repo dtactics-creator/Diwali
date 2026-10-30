@@ -1,13 +1,13 @@
 import { EnvironmentConfig, EnvironmentId } from '../types/game';
 
-import indianStreetDay from '../../public/backgrounds/indian-street/day.png';
-import indianStreetNight from '../../public/backgrounds/indian-street/night.png';
-import playgroundDay from '../../public/backgrounds/playground/day.jpg';
-import playgroundNight from '../../public/backgrounds/playground/night.jpg';
-import gatedCommunityDay from '../../public/backgrounds/gated-community/day.jpg';
-import gatedCommunityNight from '../../public/backgrounds/gated-community/night.jpg';
-import courtyardDay from '../../public/backgrounds/courtyard/day.jpg';
-import courtyardNight from '../../public/backgrounds/courtyard/night.jpg'
+import indianStreetDay from '../../public/backgrounds/day_in_street.png';
+import indianStreetNight from '../../public/backgrounds/night_in_street.png';
+import playgroundDay from '../../public/backgrounds/a_change_this_image_in.webp';
+import playgroundNight from '../../public/backgrounds/a_An_ultra-photorealis.webp';
+import gatedCommunityDay from '../../public/backgrounds/b_change_this_image_in.webp';
+import gatedCommunityNight from '../../public/backgrounds/b_An_ultra-photorealis.webp';
+import courtyardDay from '../../public/backgrounds/b_change_this_image_in (1).webp';
+import courtyardNight from '../../public/backgrounds/a_make_the_aspectretio.webp';
 
 export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
   'indian-street': {
@@ -24,28 +24,30 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
       night: indianStreetNight,
     },
     publicPaths: {
-      day: '/backgrounds/indian-street/day.jpg',
-      night: '/backgrounds/indian-street/night.png',
+      day: '/backgrounds/day_in_street.png',
+      night: '/backgrounds/night_in_street.png',
     },
-    backgroundPosition: 'center bottom',
+    backgroundPosition: 'center 78%',
+    backgroundBaseY: 78,
+    backgroundSkyY: 5,
     camera: {
-      position: [0, 2.1, 7.2],
-      lookAt: [0, 0.85, 0],
-      fov: 40,
+      position: [0, 1.35, 9.5],
+      lookAt: [0, 1.6, 0],
+      fov: 50,
     },
     groundY: 0,
-    characterSpawn: [-0.95, 0, 1.4],
+    characterSpawn: [-0.8, 0, 3.0],
     movementBounds: {
-      minX: -2.8,
-      maxX: 2.8,
-      minZ: -0.6,
-      maxZ: 3.2,
+      minX: -3.2,
+      maxX: 3.2,
+      minZ: 0.5,
+      maxZ: 5.0,
     },
     placementBounds: {
-      minX: -2.2,
-      maxX: 2.2,
-      minZ: -0.4,
-      maxZ: 2.8,
+      minX: -2.6,
+      maxX: 2.6,
+      minZ: 0.8,
+      maxZ: 4.5,
     },
     groundColor: {
       day: '#4a484c',
@@ -55,12 +57,12 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
     },
     groundRoughness: 0.78,
     diyaAnchors: [
-      { x: -3.9, z: -1.5, scale: 1.0 },
-      { x: -2.8, z: -1.7, scale: 0.9 },
-      { x: 2.8, z: -1.7, scale: 0.9 },
-      { x: 3.9, z: -1.5, scale: 1.0 },
-      { x: -4.1, z: 0.5, scale: 1.1 },
-      { x: 4.1, z: 0.5, scale: 1.1 },
+      { x: -3.9, z: 0.0, scale: 1.0 },
+      { x: -2.8, z: -0.2, scale: 0.9 },
+      { x: 2.8, z: -0.2, scale: 0.9 },
+      { x: 3.9, z: 0.0, scale: 1.0 },
+      { x: -4.1, z: 2.0, scale: 1.1 },
+      { x: 4.1, z: 2.0, scale: 1.1 },
     ],
     features: [
       'Asphalt street lane with safe central ignition zone',
@@ -83,27 +85,30 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
       night: playgroundNight,
     },
     publicPaths: {
-      day: '/backgrounds/playground/day.jpg',
-      night: '/backgrounds/playground/night.jpg',
+      day: '/backgrounds/a_change_this_image_in.webp',
+      night: '/backgrounds/a_An_ultra-photorealis.webp',
     },
+    backgroundPosition: 'center 82%',
+    backgroundBaseY: 82,
+    backgroundSkyY: 5,
     camera: {
-      position: [0, 2.5, 8.2],
-      lookAt: [0, 1.0, -0.2],
-      fov: 44,
+      position: [0, 1.3, 10.0],
+      lookAt: [0, 1.5, 0],
+      fov: 52,
     },
     groundY: 0,
-    characterSpawn: [-1.8, 0, 1.3],
+    characterSpawn: [-1.5, 0, 3.0],
     movementBounds: {
-      minX: -5.0,
-      maxX: 5.0,
-      minZ: -2.3,
-      maxZ: 3.3,
+      minX: -5.5,
+      maxX: 5.5,
+      minZ: 0.0,
+      maxZ: 5.5,
     },
     placementBounds: {
-      minX: -4.4,
-      maxX: 4.4,
-      minZ: -1.9,
-      maxZ: 2.8,
+      minX: -4.8,
+      maxX: 4.8,
+      minZ: 0.3,
+      maxZ: 5.0,
     },
     groundColor: {
       day: '#5c5346',
@@ -113,11 +118,11 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
     },
     groundRoughness: 0.88,
     diyaAnchors: [
-      { x: -4.5, z: -2.0, scale: 1.0 },
-      { x: -2.2, z: -2.2, scale: 0.95 },
-      { x: 0.0, z: -2.3, scale: 1.0 },
-      { x: 2.2, z: -2.2, scale: 0.95 },
-      { x: 4.5, z: -2.0, scale: 1.0 },
+      { x: -4.5, z: -0.5, scale: 1.0 },
+      { x: -2.2, z: -0.7, scale: 0.95 },
+      { x: 0.0, z: -0.8, scale: 1.0 },
+      { x: 2.2, z: -0.7, scale: 0.95 },
+      { x: 4.5, z: -0.5, scale: 1.0 },
     ],
     features: [
       'Largest open ground placement zone for multi-cracker setups',
@@ -140,27 +145,30 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
       night: gatedCommunityNight,
     },
     publicPaths: {
-      day: '/backgrounds/gated-community/day.jpg',
-      night: '/backgrounds/gated-community/night.jpg',
+      day: '/backgrounds/b_change_this_image_in.webp',
+      night: '/backgrounds/b_An_ultra-photorealis.webp',
     },
+    backgroundPosition: 'center 80%',
+    backgroundBaseY: 80,
+    backgroundSkyY: 5,
     camera: {
-      position: [0, 2.4, 7.8],
-      lookAt: [0, 1.0, 0],
-      fov: 43,
+      position: [0, 1.35, 9.8],
+      lookAt: [0, 1.55, 0],
+      fov: 50,
     },
     groundY: 0,
-    characterSpawn: [-1.5, 0, 1.2],
+    characterSpawn: [-1.2, 0, 3.0],
     movementBounds: {
-      minX: -4.5,
-      maxX: 4.5,
-      minZ: -2.0,
-      maxZ: 3.1,
+      minX: -5.0,
+      maxX: 5.0,
+      minZ: 0.2,
+      maxZ: 5.2,
     },
     placementBounds: {
-      minX: -3.9,
-      maxX: 3.9,
-      minZ: -1.6,
-      maxZ: 2.7,
+      minX: -4.2,
+      maxX: 4.2,
+      minZ: 0.5,
+      maxZ: 4.8,
     },
     groundColor: {
       day: '#58565c',
@@ -170,12 +178,12 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
     },
     groundRoughness: 0.68,
     diyaAnchors: [
-      { x: -4.0, z: -1.7, scale: 1.05 },
-      { x: -1.8, z: -1.9, scale: 1.0 },
-      { x: 1.8, z: -1.9, scale: 1.0 },
-      { x: 4.0, z: -1.7, scale: 1.05 },
-      { x: -4.3, z: 0.8, scale: 1.1 },
-      { x: 4.3, z: 0.8, scale: 1.1 },
+      { x: -4.0, z: -0.2, scale: 1.05 },
+      { x: -1.8, z: -0.4, scale: 1.0 },
+      { x: 1.8, z: -0.4, scale: 1.0 },
+      { x: 4.0, z: -0.2, scale: 1.05 },
+      { x: -4.3, z: 2.3, scale: 1.1 },
+      { x: 4.3, z: 2.3, scale: 1.1 },
     ],
     features: [
       'Paved cobblestone plaza with crisp specular light reflections',
@@ -198,27 +206,30 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
       night: courtyardNight,
     },
     publicPaths: {
-      day: '/backgrounds/courtyard/day.jpg',
-      night: '/backgrounds/courtyard/night.jpg',
+      day: '/backgrounds/b_change_this_image_in (1).webp',
+      night: '/backgrounds/a_make_the_aspectretio.webp',
     },
+    backgroundPosition: 'center 82%',
+    backgroundBaseY: 82,
+    backgroundSkyY: 5,
     camera: {
-      position: [0, 2.25, 7.1],
-      lookAt: [0, 0.9, 0.1],
-      fov: 40,
+      position: [0, 1.3, 9.0],
+      lookAt: [0, 1.5, 0],
+      fov: 48,
     },
     groundY: 0,
-    characterSpawn: [-1.2, 0, 1.0],
+    characterSpawn: [-1.0, 0, 2.5],
     movementBounds: {
-      minX: -3.6,
-      maxX: 3.6,
-      minZ: -1.5,
-      maxZ: 2.8,
+      minX: -4.0,
+      maxX: 4.0,
+      minZ: 0.0,
+      maxZ: 4.5,
     },
     placementBounds: {
-      minX: -3.1,
-      maxX: 3.1,
-      minZ: -1.2,
-      maxZ: 2.3,
+      minX: -3.4,
+      maxX: 3.4,
+      minZ: 0.3,
+      maxZ: 4.0,
     },
     groundColor: {
       day: '#704d3e',
@@ -228,14 +239,14 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
     },
     groundRoughness: 0.62,
     diyaAnchors: [
-      { x: -3.3, z: -1.4, scale: 1.1 },
-      { x: -2.0, z: -1.5, scale: 1.0 },
-      { x: -0.7, z: -1.5, scale: 1.0 },
-      { x: 0.7, z: -1.5, scale: 1.0 },
-      { x: 2.0, z: -1.5, scale: 1.0 },
-      { x: 3.3, z: -1.4, scale: 1.1 },
-      { x: -3.5, z: 0.4, scale: 1.1 },
-      { x: 3.5, z: 0.4, scale: 1.1 },
+      { x: -3.3, z: 0.1, scale: 1.1 },
+      { x: -2.0, z: 0.0, scale: 1.0 },
+      { x: -0.7, z: 0.0, scale: 1.0 },
+      { x: 0.7, z: 0.0, scale: 1.0 },
+      { x: 2.0, z: 0.0, scale: 1.0 },
+      { x: 3.3, z: 0.1, scale: 1.1 },
+      { x: -3.5, z: 1.9, scale: 1.1 },
+      { x: 3.5, z: 1.9, scale: 1.1 },
     ],
     features: [
       'Intimate terracotta & stone-tiled courtyard floor with central Rangoli',

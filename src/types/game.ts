@@ -97,6 +97,8 @@ export interface EnvironmentConfig {
     night: string;
   };
   backgroundPosition?: string;
+  backgroundBaseY?: number;
+  backgroundSkyY?: number;
   camera: {
     position: [number, number, number];
     lookAt: [number, number, number];

@@ -35,9 +35,11 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
   useEffect(() => {
     const tick = () => {
       const track = rocketTrackRef?.current;
-      // Slaved directly to 3D camera tilt progress: 0 = street floor (100%), 1 = pure high sky (0%)
+      // Slaved directly to 3D camera tilt progress: 0 = street floor (baseY), 1 = pure high sky (skyY)
       const tilt = track?.cameraTiltProgress ?? 0;
-      const posY = (100 - tilt * 100).toFixed(2);
+      const baseY = environment.backgroundBaseY ?? 60;
+      const skyY = environment.backgroundSkyY ?? 8;
+      const posY = (baseY - tilt * (baseY - skyY)).toFixed(2);
       const posStr = `center ${posY}%`;
 
       if (dayImgRef.current)   dayImgRef.current.style.objectPosition   = posStr;
@@ -50,7 +52,7 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [rocketTrackRef]);
+  }, [rocketTrackRef, environment.backgroundBaseY, environment.backgroundSkyY]);
 
   const showCloudLayer =
     weatherEffectsEnabled && (weather.id === 'cloudy' || weather.id === 'rain');
@@ -79,7 +81,7 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
           onError={() => setDayImgError(true)}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
           style={{
-            objectPosition: environment.backgroundPosition || 'center 100%',
+            objectPosition: environment.backgroundPosition || 'center 60%',
             opacity: 1,
           }}
         />
@@ -100,7 +102,7 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
           onError={() => setNightImgError(true)}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
           style={{
-            objectPosition: environment.backgroundPosition || 'center 100%',
+            objectPosition: environment.backgroundPosition || 'center 60%',
             opacity: timeOfDay.nightPlateOpacity,
           }}
         />

@@ -251,6 +251,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({
                         src={previewSrc}
                         alt={env.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        style={{ objectPosition: env.backgroundPosition || 'center 60%' }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
                       {isSelected && (

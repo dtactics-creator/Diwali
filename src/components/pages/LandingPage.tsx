@@ -171,7 +171,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <img
             src={ENVIRONMENTS['indian-street'].backgrounds.night}
             alt="Diwali Hero Backdrop"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover"
+            style={{ objectPosition: ENVIRONMENTS['indian-street'].backgroundPosition || 'center 58%' }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#070612] via-[#070612]/85 to-[#070612]/55" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#070612] via-transparent to-[#070612]/60" />
@@ -371,6 +372,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       src={imgSrc}
                       alt={env.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      style={{ objectPosition: env.backgroundPosition || 'center 60%' }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#070612] via-transparent to-transparent" />
                     <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 text-[10px] font-bold text-amber-300">

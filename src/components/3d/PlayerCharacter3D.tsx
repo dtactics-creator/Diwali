@@ -805,37 +805,48 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
     let moveX = 0;
     let moveZ = 0;
 
-    // Normal manual movement allowed only when not in mandatory retreat or ignition
-    if (!isRetreating && forcedState !== 'Ignite') {
+    const walkSpeed = 2.05;
+    const runSpeed = 3.55;
+    if (!autoMoveTarget) completedAutoTargetRef.current = null;
+    const autoKey = autoMoveTarget ? `${autoMoveMode}:${autoMoveTarget[0].toFixed(2)}:${autoMoveTarget[2].toFixed(2)}` : null;
+    const isAutoNavigating = Boolean(autoMoveTarget && autoMoveMode && autoKey !== completedAutoTargetRef.current && forcedState !== 'Ignite');
+
+    if (isAutoNavigating && autoMoveTarget) {
+      const dx = autoMoveTarget[0] - posRef.current.x;
+      const dz = autoMoveTarget[2] - posRef.current.z;
+      const distance = Math.hypot(dx, dz);
+      const arrivalThreshold = autoMoveMode === 'approach' ? 0.08 : 0.16;
+      if (distance <= arrivalThreshold) {
+        velocityRef.current.set(0, 0, 0);
+        desiredVelocityRef.current.set(0, 0, 0);
+        completedAutoTargetRef.current = autoKey;
+        onPositionChange([posRef.current.x, posRef.current.y, posRef.current.z], currentStateRef.current);
+        onAutoMoveComplete?.();
+      } else {
+        moveX = dx / distance;
+        moveZ = dz / distance;
+      }
+    } else if (!isRetreating && forcedState !== 'Ignite') {
+      // Normal manual keyboard/touch movement: S & Down Arrow move backward (+Z towards camera)
       moveX = input.joyX;
       moveZ = input.joyY;
 
       if (input.left) moveX -= 1;
       if (input.right) moveX += 1;
       if (input.forward) moveZ -= 1;
-      if (input.backward) moveZ -= 1;
-    }
-    const walkSpeed = 2.05;
-    const runSpeed = 3.55;
-    if (!autoMoveTarget) completedAutoTargetRef.current = null;
-    const autoKey = autoMoveTarget ? `${autoMoveMode}:${autoMoveTarget[0].toFixed(2)}:${autoMoveTarget[2].toFixed(2)}` : null;
-    if (autoKey !== completedAutoTargetRef.current && autoMoveTarget) {
-      const dx = autoMoveTarget[0] - posRef.current.x;
-      const dz = autoMoveTarget[2] - posRef.current.z;
-      const distance = Math.hypot(dx, dz);
-      if (distance <= 0.16) {
-        velocityRef.current.set(0, 0, 0);
-        completedAutoTargetRef.current = autoKey;
-        onAutoMoveComplete?.();
-      } else {
-        moveX = dx / distance;
-        moveZ = dz / distance;
+      if (input.backward) moveZ += 1; // Verified: +Z is backward (towards camera)
+
+      // Normalize diagonal keyboard input so moving diagonally is not faster
+      const manualLen = Math.hypot(moveX, moveZ);
+      if (manualLen > 1) {
+        moveX /= manualLen;
+        moveZ /= manualLen;
       }
     }
+
     const inputLength = Math.hypot(moveX, moveZ);
-    const autoMoving = Boolean(autoMoveTarget && autoKey !== completedAutoTargetRef.current);
-    const hasMoveInput = (inputLength > 0.08 || autoMoving) && forcedState !== 'Ignite';
-    const maxSpeed = autoMoving ? (autoMoveMode === 'retreat' ? runSpeed : walkSpeed) : (input.run ? runSpeed : walkSpeed);
+    const hasMoveInput = inputLength > 0.08 && forcedState !== 'Ignite';
+    const maxSpeed = isAutoNavigating ? (autoMoveMode === 'retreat' ? runSpeed : walkSpeed) : (input.run ? runSpeed : walkSpeed);
     const acceleration = 10.0;
     const deceleration = 13.0;
 
@@ -918,7 +929,7 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
 
         // Run activates immediately when Shift is held + there is movement input.
         // No speed-ratio gate — that caused the delayed/broken run feel.
-        const useRun = (autoMoving && autoMoveMode === 'retreat') || (input.run && hasMoveInput);
+        const useRun = (isAutoNavigating && autoMoveMode === 'retreat') || (!isAutoNavigating && input.run && hasMoveInput);
         transitionToAnimation(useRun ? 'Run' : 'Walk');
         if (activeActionRef.current) {
           // Scale playback speed to match actual travel speed for foot synchronisation.

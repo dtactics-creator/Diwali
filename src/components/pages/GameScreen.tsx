@@ -247,93 +247,25 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     return closest;
   }, [placedCrackers, characterPos]);
 
-  // Initiate Sequential Cracker Interaction Flow (Approach -> Reach Fuse -> Ignite -> Retreat -> Safe -> Celebrate)
-  const handleIgniteCracker = useCallback(
-    (instanceId: string) => {
-      // 1. Never allow ignition when another cracker interaction is already in progress
-      if (interactionStateRef.current !== 'idle' || isPaused) return;
-
-      const target = placedCrackers.find((c) => c.instanceId === instanceId);
-      if (!target || target.state !== 'Placed') return;
-
-      // 2. Strict Proximity Check: verify physical distance to cracker fuse / base
+  // Start physical reaching, fuse lighting, and automatic retreat sequence
+  const startLightingSequence = useCallback(
+    (target: PlacedCrackerInstance) => {
       const fusePos = getCrackerWorldFusePosition(target);
-      const distToFuse = Math.hypot(
-        characterPosRef.current[0] - fusePos[0],
-        characterPosRef.current[2] - fusePos[2]
-      );
-      const distToBase = Math.hypot(
-        characterPosRef.current[0] - target.position[0],
-        characterPosRef.current[2] - target.position[2]
-      );
-      const effectiveDist = Math.min(distToFuse, distToBase);
-      const maxRange = CRACKERS[target.crackerId].interactionDistance;
-
-      if (effectiveDist > maxRange) {
-        // Outside interaction range: do absolutely nothing (no remote ignition!)
-        return;
-      }
-
-      // 3. Initiate Approach Phase
-      setActiveInstanceId(instanceId);
-      setInteractionState('approaching');
-
-      // Calculate natural standing position near the actual fuse
-      const dx = characterPosRef.current[0] - fusePos[0];
-      const dz = characterPosRef.current[2] - fusePos[2];
-      const len = Math.hypot(dx, dz);
-      const dirX = len > 0.01 ? dx / len : 0;
-      const dirZ = len > 0.01 ? dz / len : 1;
-      const standX = THREE.MathUtils.clamp(
-        fusePos[0] + dirX * 0.48,
-        environment.movementBounds.minX + 0.25,
-        environment.movementBounds.maxX - 0.25
-      );
-      const standZ = THREE.MathUtils.clamp(
-        fusePos[2] + dirZ * 0.48,
-        environment.movementBounds.minZ + 0.25,
-        environment.movementBounds.maxZ - 0.25
-      );
-
-      setIgniteTargetPos(fusePos);
-      setAutoMoveTarget([standX, environment.groundY, standZ]);
-      setAutoMoveMode('approach');
-      setForcedCharState(null); // Natural walking animation during approach
-    },
-    [isPaused, placedCrackers, environment.movementBounds, environment.groundY]
-  );
-
-  // Handle Character Auto-Movement Waypoint Completion
-  const handleAutoMoveComplete = useCallback(() => {
-    const currentState = interactionStateRef.current;
-    const currentActiveId = activeInstanceIdRef.current;
-
-    if (currentState === 'approaching') {
-      // Step: Approach completed -> Character reaches near fuse
       setAutoMoveTarget(null);
       setAutoMoveMode(null);
-
-      const target = placedCrackers.find((c) => c.instanceId === currentActiveId);
-      if (!target) {
-        setInteractionState('idle');
-        setActiveInstanceId(null);
-        return;
-      }
-
-      const fusePos = getCrackerWorldFusePosition(target);
       setIgniteTargetPos(fusePos);
       setInteractionState('reaching_fuse');
-      setForcedCharState('Ignite'); // Crouch down and reach glowing agarbatti to actual fuse
+      setForcedCharState('Ignite'); // Crouch down and reach glowing agarbatti directly to actual fuse
 
       if (reachTimerRef.current) clearTimeout(reachTimerRef.current);
       reachTimerRef.current = setTimeout(() => {
         setInteractionState('igniting');
 
-        // Cracker state transitions to 'Igniting'
+        // Cracker state transitions to 'Igniting' (fuse catches fire)
         const ignTs = performance.now();
         setPlacedCrackers((prev) =>
           prev.map((item) =>
-            item.instanceId === currentActiveId
+            item.instanceId === target.instanceId
               ? { ...item, state: 'Igniting', ignitedAt: ignTs }
               : item
           )
@@ -364,6 +296,95 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           setIgniteTargetPos(target.position);
         }, 700);
       }, 350);
+    },
+    [environment.movementBounds, environment.groundY]
+  );
+
+  // Initiate Sequential Cracker Interaction Flow (Approach -> Reach Fuse -> Ignite -> Retreat -> Safe -> Celebrate)
+  const handleIgniteCracker = useCallback(
+    (instanceId: string) => {
+      // 1. Never allow ignition when another cracker interaction is already in progress
+      if (interactionStateRef.current !== 'idle' || isPaused) return;
+
+      const target = placedCrackers.find((c) => c.instanceId === instanceId);
+      if (!target || target.state !== 'Placed') return;
+
+      // 2. Strict Proximity Check: verify physical distance to cracker fuse / base
+      const fusePos = getCrackerWorldFusePosition(target);
+      const distToFuse = Math.hypot(
+        characterPosRef.current[0] - fusePos[0],
+        characterPosRef.current[2] - fusePos[2]
+      );
+      const distToBase = Math.hypot(
+        characterPosRef.current[0] - target.position[0],
+        characterPosRef.current[2] - target.position[2]
+      );
+      const effectiveDist = Math.min(distToFuse, distToBase);
+      const maxRange = CRACKERS[target.crackerId].interactionDistance;
+
+      if (effectiveDist > maxRange) {
+        // Outside interaction range: do absolutely nothing (no remote ignition!)
+        return;
+      }
+
+      // 3. Initiate Physical Approach Phase towards actual fuse
+      setActiveInstanceId(instanceId);
+
+      // Calculate natural standing position near the actual fuse (38cm stand offset)
+      const dx = characterPosRef.current[0] - fusePos[0];
+      const dz = characterPosRef.current[2] - fusePos[2];
+      const len = Math.hypot(dx, dz);
+      const dirX = len > 0.01 ? dx / len : 0;
+      const dirZ = len > 0.01 ? dz / len : 1;
+      const standOffset = 0.38;
+      const standX = THREE.MathUtils.clamp(
+        fusePos[0] + dirX * standOffset,
+        environment.movementBounds.minX + 0.25,
+        environment.movementBounds.maxX - 0.25
+      );
+      const standZ = THREE.MathUtils.clamp(
+        fusePos[2] + dirZ * standOffset,
+        environment.movementBounds.minZ + 0.25,
+        environment.movementBounds.maxZ - 0.25
+      );
+
+      const distToStand = Math.hypot(
+        characterPosRef.current[0] - standX,
+        characterPosRef.current[2] - standZ
+      );
+
+      setIgniteTargetPos(fusePos);
+
+      if (distToStand <= 0.08) {
+        // Character is already right at the fuse stand location: start lighting directly
+        startLightingSequence(target);
+      } else {
+        // Physically walk to the fuse stand location
+        setInteractionState('approaching');
+        setAutoMoveTarget([standX, environment.groundY, standZ]);
+        setAutoMoveMode('approach');
+        setForcedCharState(null); // Natural walking animation during physical approach
+      }
+    },
+    [isPaused, placedCrackers, environment.movementBounds, environment.groundY, startLightingSequence]
+  );
+
+  // Handle Character Auto-Movement Waypoint Completion
+  const handleAutoMoveComplete = useCallback(() => {
+    const currentState = interactionStateRef.current;
+    const currentActiveId = activeInstanceIdRef.current;
+
+    if (currentState === 'approaching') {
+      // Step: Approach completed -> Character reaches near fuse
+      const target = placedCrackers.find((c) => c.instanceId === currentActiveId);
+      if (!target) {
+        setInteractionState('idle');
+        setActiveInstanceId(null);
+        setAutoMoveTarget(null);
+        setAutoMoveMode(null);
+        return;
+      }
+      startLightingSequence(target);
     } else if (currentState === 'retreating') {
       // Step: Retreat completed -> Verify safe distance
       const target = placedCrackers.find((c) => c.instanceId === currentActiveId);
@@ -384,9 +405,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         // Restore controls & automatically trigger Diwali celebration
         setForcedCharState('Celebrate');
         setInteractionState('celebrating');
+        if (target) setIgniteTargetPos(target.position);
       }
     }
-  }, [placedCrackers, environment.movementBounds, environment.groundY]);
+  }, [placedCrackers, startLightingSequence]);
 
   // Synchronized Simulation Ticker: Safe Distance Validation & Lifecycle State Management
   useEffect(() => {
@@ -541,17 +563,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
       if (isPaused) return;
 
-      // Movement — allow browser key-repeat for held movement keys
-      if (key === 'w' || e.key === 'ArrowUp') inputRef.current.forward = true;
-      if (key === 's' || e.key === 'ArrowDown') inputRef.current.backward = true;
-      if (key === 'a' || e.key === 'ArrowLeft') inputRef.current.left = true;
-      if (key === 'd' || e.key === 'ArrowRight') inputRef.current.right = true;
+      // Movement — allow browser key-repeat for held movement keys (supports W/A/S/D and Arrow keys)
+      if (key === 'w' || e.key === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowUp') inputRef.current.forward = true;
+      if (key === 's' || e.key === 'ArrowDown' || e.code === 'KeyS' || e.code === 'ArrowDown') inputRef.current.backward = true;
+      if (key === 'a' || e.key === 'ArrowLeft' || e.code === 'KeyA' || e.code === 'ArrowLeft') inputRef.current.left = true;
+      if (key === 'd' || e.key === 'ArrowRight' || e.code === 'KeyD' || e.code === 'ArrowRight') inputRef.current.right = true;
 
       // Shift = Run
-      if (e.key === 'Shift' && !e.repeat) inputRef.current.run = true;
+      if ((e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) inputRef.current.run = true;
 
       // Crouch — hold
-      if (key === 'c' && !e.repeat) inputRef.current.crouch = true;
+      if ((key === 'c' || e.code === 'KeyC') && !e.repeat) inputRef.current.crouch = true;
 
       // Number keys 1-6 select crackers
       if (!e.repeat && ['1', '2', '3', '4', '5', '6'].includes(key)) {
@@ -563,7 +585,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       }
 
       // Strict Proximity E key: ONLY lights nearest interactable cracker when within range and idle
-      if (key === 'e' && !e.repeat) {
+      if ((key === 'e' || e.code === 'KeyE') && !e.repeat) {
         if (nearestInteractableCracker && interactionStateRef.current === 'idle') {
           handleIgniteCracker(nearestInteractableCracker.instanceId);
         }
@@ -573,19 +595,30 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      if (key === 'w' || e.key === 'ArrowUp') inputRef.current.forward = false;
-      if (key === 's' || e.key === 'ArrowDown') inputRef.current.backward = false;
-      if (key === 'a' || e.key === 'ArrowLeft') inputRef.current.left = false;
-      if (key === 'd' || e.key === 'ArrowRight') inputRef.current.right = false;
-      if (e.key === 'Shift') inputRef.current.run = false;
-      if (key === 'c') inputRef.current.crouch = false;
+      if (key === 'w' || e.key === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowUp') inputRef.current.forward = false;
+      if (key === 's' || e.key === 'ArrowDown' || e.code === 'KeyS' || e.code === 'ArrowDown') inputRef.current.backward = false;
+      if (key === 'a' || e.key === 'ArrowLeft' || e.code === 'KeyA' || e.code === 'ArrowLeft') inputRef.current.left = false;
+      if (key === 'd' || e.key === 'ArrowRight' || e.code === 'KeyD' || e.code === 'ArrowRight') inputRef.current.right = false;
+      if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') inputRef.current.run = false;
+      if (key === 'c' || e.code === 'KeyC') inputRef.current.crouch = false;
+    };
+
+    const handleBlur = () => {
+      inputRef.current.forward = false;
+      inputRef.current.backward = false;
+      inputRef.current.left = false;
+      inputRef.current.right = false;
+      inputRef.current.run = false;
+      inputRef.current.crouch = false;
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
   }, [
     isPaused,

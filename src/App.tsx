@@ -6,6 +6,7 @@ import { LandingPage } from './components/pages/LandingPage';
 import { PlayerDashboardModal } from './components/pages/PlayerDashboardModal';
 import { SetupScreen } from './components/pages/SetupScreen';
 import { SimulationErrorBoundary } from './components/ui/SimulationErrorBoundary';
+import { RotateDeviceOverlay } from './components/ui/RotateDeviceOverlay';
 import { audioSystem } from './systems/AudioSystem';
 import {
   DEFAULT_STATISTICS,
@@ -192,6 +193,9 @@ export function App() {
         }}
         onClose={() => setIsAssetManifestOpen(false)}
       />
+
+      {/* Mobile Landscape Orientation Lock & Fallback Overlay */}
+      <RotateDeviceOverlay />
     </SimulationErrorBoundary>
   );
 }

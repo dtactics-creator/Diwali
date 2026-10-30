@@ -15,10 +15,26 @@
   animation: fadeIn 0.22s ease-out forwards;
 }
 
+@keyframes phoneRotate {
+  0%, 15% {
+    transform: rotate(0deg);
+  }
+  50%, 80% {
+    transform: rotate(-90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-phoneRotate {
+  animation: phoneRotate 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
 /* Custom sleek dark scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -32,4 +48,13 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(251, 191, 36, 0.6);
+}
+
+/* Hide scrollbar for clean horizontal cracker carousel */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

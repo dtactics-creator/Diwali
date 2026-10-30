@@ -568,7 +568,7 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
   customGlbUrl,
   onAssetStatusChange,
   enableShadows,
-  rocketTrackRef,
+  rocketTrackRef: _rocketTrackRef,
 }) => {
   const rootGroupRef = useRef<THREE.Group>(null);
   const rigRootRef = useRef<THREE.Group>(null);
@@ -957,8 +957,8 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
       rootGroupRef.current.position.copy(posRef.current);
       rootGroupRef.current.rotation.y = rotYRef.current;
       // Character stays firmly on the street floor; cleanly hidden when camera points to sky
-      const tilt = rocketTrackRef?.current?.cameraTiltProgress ?? 0;
-      rootGroupRef.current.visible = tilt < 0.22;
+      // Character remains permanently stationary & visible in world space
+      rootGroupRef.current.visible = true;
     }
 
     // Throttle parent state callback to ~15Hz to avoid React re-render overhead in frame loop

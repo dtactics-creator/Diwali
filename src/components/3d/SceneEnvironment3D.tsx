@@ -119,8 +119,13 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
       1
     );
     track.cameraTiltProgress = tiltProgress;
+    // Ground, diyas and street objects remain permanently stationary & visible in world space
     if (groundGroupRef.current) {
-      groundGroupRef.current.visible = tiltProgress < 0.22;
+      groundGroupRef.current.visible = true;
+    }
+    if (!track.active && lookAtPointRef.current.distanceTo(targetLook) < 0.005) {
+      lookAtPointRef.current.copy(targetLook);
+      track.cameraTiltProgress = 0;
     }
 
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {

@@ -1,0 +1,17 @@
+{
+  "name": "GuessMe.co — 3D Virtual Diwali Fireworks Simulation",
+  "short_name": "Diwali 3D",
+  "description": "GuessMe.co 3D Virtual Diwali Fireworks Simulator with Indian environments, character movement, and pyrotechnics.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#070612",
+  "theme_color": "#070612",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

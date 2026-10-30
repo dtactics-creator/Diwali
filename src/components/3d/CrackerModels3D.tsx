@@ -688,13 +688,13 @@ export const PlacedCrackersManager3D: React.FC<PlacedCrackersManager3DProps> = (
   nearestInteractableId,
   currentTimeMs,
   onSelectPlacedCracker,
-  rocketTrackRef,
+  rocketTrackRef: _rocketTrackRef,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   useFrame(() => {
-    const tilt = rocketTrackRef?.current?.cameraTiltProgress ?? 0;
+    // Placed crackers remain permanently stationary & visible in world space
     if (groupRef.current) {
-      groupRef.current.visible = tilt < 0.22;
+      groupRef.current.visible = true;
     }
   });
 

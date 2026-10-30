@@ -97,6 +97,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 }) => {
   const [showControlsHelp, setShowControlsHelp] = useState(false);
   const [showQuickEnvMenu, setShowQuickEnvMenu] = useState(false);
+  const [showQuickSceneMenu, setShowQuickSceneMenu] = useState(false);
 
   const activeEnv = ENVIRONMENTS[settings.environment];
   const placedReadyCrackers = placedCrackers.filter((c) => c.state === 'Placed');
@@ -138,30 +139,38 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-4 select-none z-20">
-      {/* TOP BAR */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* Brand + Location Pill */}
-          <div className="pointer-events-auto flex items-center gap-2 bg-slate-950/75 backdrop-blur-md border border-amber-500/25 rounded-2xl p-1.5 pr-3 shadow-xl">
+    <div
+      className="absolute inset-0 pointer-events-none flex flex-col justify-between p-2 sm:p-3.5 select-none z-20"
+      style={{
+        paddingTop: 'max(0.4rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(0.4rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(0.5rem, env(safe-area-inset-left))',
+        paddingRight: 'max(0.5rem, env(safe-area-inset-right))',
+      }}
+    >
+      {/* ── TOP BAR ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-1.5">
+          {/* Brand + Location Switcher Pill */}
+          <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-950/80 backdrop-blur-md border border-amber-500/25 rounded-2xl p-1 pr-2 sm:pr-3 shadow-xl">
             <button
               onClick={onBackToLanding}
-              title="Back to Landing Page"
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
+              title="Return to Landing Page"
+              className="p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
-            <div className="flex items-center gap-2 pr-2 border-r border-white/10">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-slate-950 font-black text-xs">
+            <div className="flex items-center gap-1.5 pr-1.5 border-r border-white/10">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-slate-950 font-black text-xs shrink-0 shadow-md">
                 G
               </div>
               <div className="hidden sm:block">
-                <div className="text-xs font-extrabold text-white leading-none">
+                <div className="text-xs font-black text-white leading-none">
                   GuessMe<span className="text-amber-400">.co</span>
                 </div>
-                <div className="text-[10px] text-amber-300/80 font-medium">
-                  3D Diwali Simulator
+                <div className="text-[9px] text-amber-300/80 font-medium">
+                  Diwali 3D
                 </div>
               </div>
             </div>
@@ -169,19 +178,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {/* Quick Location Switcher Button */}
             <div className="relative">
               <button
-                onClick={() => setShowQuickEnvMenu((v) => !v)}
-                className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-xs font-semibold text-amber-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowQuickEnvMenu((v) => !v);
+                  setShowQuickSceneMenu(false);
+                }}
+                className="px-2 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-[11px] sm:text-xs font-semibold text-amber-200 flex items-center gap-1 transition-colors cursor-pointer"
               >
-                <Compass className="w-3.5 h-3.5 text-amber-400" />
-                <span className="max-w-[130px] sm:max-w-[180px] truncate">
+                <Compass className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="max-w-[95px] sm:max-w-[150px] truncate">
                   {activeEnv.name}
                 </span>
               </button>
 
               {showQuickEnvMenu && (
-                <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-slate-950/95 backdrop-blur-xl border border-amber-500/30 p-2 shadow-2xl z-40">
+                <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-slate-950/95 backdrop-blur-xl border border-amber-500/30 p-2 shadow-2xl z-40 max-h-72 overflow-y-auto">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70 px-2.5 py-1">
-                    Switch Environment (Resets Ground)
+                    Switch Environment
                   </div>
                   {ENVIRONMENT_LIST.map((env) => (
                     <button
@@ -190,25 +202,123 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                         onUpdateSettings({ environment: env.id as EnvironmentId });
                         setShowQuickEnvMenu(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                      className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
                         settings.environment === env.id
                           ? 'bg-amber-400 text-slate-950 font-bold'
                           : 'text-slate-200 hover:bg-white/10'
                       }`}
                     >
-                      <span>{env.name}</span>
+                      <span className="truncate pr-2">{env.name}</span>
                       {settings.environment === env.id && (
-                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                       )}
                     </button>
                   ))}
                 </div>
               )}
             </div>
+
+            {/* Mobile Scene Popover Trigger (visible on smaller landscape screens) */}
+            <div className="relative xl:hidden">
+              <button
+                onClick={() => {
+                  setShowQuickSceneMenu((v) => !v);
+                  setShowQuickEnvMenu(false);
+                }}
+                className="px-2 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] sm:text-xs font-semibold text-amber-200 flex items-center gap-1 transition-colors cursor-pointer"
+                title="Change Time, Weather & Quality"
+              >
+                {getTimeIcon(settings.timeOfDay)}
+                <span className="capitalize">{settings.timeOfDay}</span>
+              </button>
+
+              {showQuickSceneMenu && (
+                <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-slate-950/95 backdrop-blur-xl border border-amber-500/30 p-3 shadow-2xl z-40 space-y-3">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70 mb-1.5">
+                      Time of Day
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {TIME_OF_DAY_LIST.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            onUpdateSettings({ timeOfDay: t.id });
+                            setShowQuickSceneMenu(false);
+                          }}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                            settings.timeOfDay === t.id
+                              ? 'bg-amber-400 text-slate-950'
+                              : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                          }`}
+                        >
+                          {getTimeIcon(t.id)}
+                          <span className="capitalize">{t.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70 mb-1.5">
+                      Weather Effects
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {WEATHER_LIST.map((w) => (
+                        <button
+                          key={w.id}
+                          onClick={() => {
+                            onUpdateSettings({
+                              weather: w.id,
+                              weatherEffectsEnabled: true,
+                            });
+                            setShowQuickSceneMenu(false);
+                          }}
+                          className={`px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                            settings.weather === w.id
+                              ? 'bg-sky-400 text-slate-950'
+                              : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                          }`}
+                        >
+                          {getWeatherIcon(w.id)}
+                          <span className="capitalize">{w.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300/70 mb-1.5">
+                      Graphics Quality
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {GRAPHICS_LIST.map((g) => (
+                        <button
+                          key={g.id}
+                          onClick={() => {
+                            onUpdateSettings({
+                              graphicsQuality: g.id as GraphicsQualityId,
+                            });
+                            setShowQuickSceneMenu(false);
+                          }}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold uppercase transition-colors ${
+                            settings.graphicsQuality === g.id
+                              ? 'bg-amber-500/30 text-amber-300 border border-amber-400/50'
+                              : 'bg-white/5 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {g.id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Center Quick Time & Weather Switchers (Preserves character & inventory!) */}
-          <div className="pointer-events-auto hidden xl:flex items-center gap-2 bg-slate-950/75 backdrop-blur-md border border-white/15 rounded-2xl p-1.5 shadow-xl">
+          {/* Desktop Time & Weather Switcher Bar */}
+          <div className="pointer-events-auto hidden xl:flex items-center gap-2 bg-slate-950/80 backdrop-blur-md border border-white/15 rounded-2xl p-1 shadow-xl">
             {/* Time Presets */}
             <div className="flex items-center gap-1 pr-2 border-r border-white/10">
               {TIME_OF_DAY_LIST.map((t) => {
@@ -218,7 +328,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                     key={t.id}
                     onClick={() => onUpdateSettings({ timeOfDay: t.id })}
                     title={`Time: ${t.name}`}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-2 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       active
                         ? 'bg-amber-400 text-slate-950 shadow'
                         : 'text-slate-300 hover:bg-white/10'
@@ -246,7 +356,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       })
                     }
                     title={`Weather: ${w.name}`}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`px-2 py-1 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       active
                         ? 'bg-sky-400 text-slate-950 shadow'
                         : 'text-slate-300 hover:bg-white/10'
@@ -259,7 +369,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
               })}
             </div>
 
-            {/* Graphics Quality Preset */}
+            {/* Graphics Quality */}
             <div className="flex items-center gap-1">
               <Cpu className="w-3.5 h-3.5 text-amber-400 ml-1" />
               {GRAPHICS_LIST.map((g) => {
@@ -273,7 +383,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                       })
                     }
                     title={`Graphics: ${g.name}`}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                       active
                         ? 'bg-amber-500/25 text-amber-300 border border-amber-400/40'
                         : 'text-slate-400 hover:text-white'
@@ -286,72 +396,72 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </div>
           </div>
 
-          {/* Right Utility Actions */}
-          <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-950/75 backdrop-blur-md border border-white/15 rounded-2xl p-1.5 shadow-xl">
+          {/* Right Utility Buttons */}
+          <div className="pointer-events-auto flex items-center gap-1 bg-slate-950/80 backdrop-blur-md border border-white/15 rounded-2xl p-1 shadow-xl">
             <button
               onClick={onOpenDashboard}
-              title="Player Statistics Dashboard"
-              className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-xs font-semibold text-amber-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Player Statistics"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/5 hover:bg-white/15 text-xs font-semibold text-amber-200 flex items-center gap-1 transition-colors cursor-pointer"
             >
-              <BarChart3 className="w-4 h-4 text-amber-400" />
-              <span className="hidden md:inline">Stats</span>
+              <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span className="hidden lg:inline text-[11px]">Stats</span>
             </button>
 
             <button
               onClick={onOpenAssetManifest}
-              title="Asset Manifest & Custom GLB Rig Loader"
-              className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-xs font-semibold text-amber-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Rig & Assets"
+              className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/5 hover:bg-white/15 text-xs font-semibold text-amber-200 flex items-center gap-1 transition-colors cursor-pointer"
             >
-              <FileBox className="w-4 h-4 text-amber-400" />
-              <span className="hidden md:inline">Rig / Assets</span>
+              <FileBox className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+              <span className="hidden lg:inline text-[11px]">Assets</span>
             </button>
 
             <button
               onClick={() =>
                 onUpdateSettings({ soundEnabled: !settings.soundEnabled })
               }
-              title={settings.soundEnabled ? 'Mute Sound' : 'Unmute Sound'}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
+              title={settings.soundEnabled ? 'Mute' : 'Unmute'}
+              className="p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
             >
               {settings.soundEnabled ? (
-                <Volume2 className="w-4 h-4 text-emerald-400" />
+                <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
               ) : (
-                <VolumeX className="w-4 h-4 text-rose-400" />
+                <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" />
               )}
             </button>
 
             <button
               onClick={() => setShowControlsHelp((v) => !v)}
-              title="Controls & How to Play"
-              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              title="Controls Help"
+              className={`p-1.5 sm:p-2 rounded-xl transition-colors cursor-pointer ${
                 showControlsHelp
                   ? 'bg-amber-400 text-slate-950'
                   : 'bg-white/5 hover:bg-white/15 text-amber-200'
               }`}
             >
-              <HelpCircle className="w-4 h-4" />
+              <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             <button
               onClick={onOpenSetupStudio}
-              title="Scene & Weather Settings"
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
+              title="Settings Studio"
+              className="p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             <button
               onClick={onRestartScene}
-              title="Clear Placed Crackers & Reset Character"
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
+              title="Clear Ground & Reset"
+              className="p-1.5 sm:p-2 rounded-xl bg-white/5 hover:bg-white/15 text-amber-200 transition-colors cursor-pointer"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             <button
               onClick={onTogglePause}
-              title={isPaused ? 'Resume Simulation' : 'Pause Simulation (Esc)'}
-              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+              title={isPaused ? 'Resume (Esc)' : 'Pause (Esc)'}
+              className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-xl font-bold text-[11px] sm:text-xs flex items-center gap-1 transition-colors cursor-pointer ${
                 isPaused
                   ? 'bg-emerald-400 text-slate-950'
                   : 'bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 border border-amber-400/30'
@@ -359,206 +469,187 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             >
               {isPaused ? (
                 <>
-                  <Play className="w-3.5 h-3.5 fill-current" /> Resume
+                  <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
+                  <span className="hidden sm:inline">Resume</span>
                 </>
               ) : (
                 <>
-                  <Pause className="w-3.5 h-3.5" /> Pause
+                  <Pause className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                  <span className="hidden sm:inline">Pause</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Compact Status & Prompt Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {/* Character & Particle Telemetry Pill */}
-          <div className="hidden sm:flex items-center gap-3 px-3 py-1 rounded-full bg-slate-950/65 backdrop-blur-md border border-white/10 text-[11px] text-slate-300">
-            <span>
-              Character:{' '}
-              <strong className="text-amber-300">{characterAnimState}</strong>
-            </span>
-            <span className="text-white/20">•</span>
-            <span>
-              Particles:{' '}
-              <strong className="text-amber-300 font-mono">
-                {activeParticleCount}
-              </strong>
-            </span>
-            <span className="text-white/20">•</span>
-            <span>
-              Placed:{' '}
-              <strong className="text-white">{placedCrackers.length}</strong>
-            </span>
+        {/* Environment Reset Notice Toast */}
+        {environmentResetNotice && (
+          <div className="pointer-events-auto mx-auto px-3.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-medium animate-fadeIn">
+            {environmentResetNotice}
           </div>
+        )}
 
-          {/* Environment Reset Notice Toast */}
-          {environmentResetNotice && (
-            <div className="px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-medium animate-fadeIn">
-              {environmentResetNotice}
-            </div>
-          )}
-
-          {/* Contextual Placement / Ignition Prompt Banner */}
-          <div className="pointer-events-auto mx-auto sm:mx-0">
-            {selectedCrackerForPlacement ? (
-              <div
-                className={`px-4 py-1.5 rounded-full backdrop-blur-md border text-xs font-semibold flex items-center gap-2.5 shadow-lg ${
-                  !hasHoverPoint
-                    ? 'bg-slate-950/85 border-amber-400/40 text-amber-100'
-                    : isValidHover
-                    ? 'bg-emerald-950/85 border-emerald-400/50 text-emerald-200'
-                    : 'bg-rose-950/85 border-rose-400/50 text-rose-200'
-                }`}
-              >
-                <Flame className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>
-                  {!hasHoverPoint
-                    ? `Placing ${CRACKERS[selectedCrackerForPlacement].name}: Click or tap on the ground`
-                    : isValidHover
-                    ? `Valid Placement Zone — Click or tap ground to place ${CRACKERS[selectedCrackerForPlacement].name}`
-                    : 'Outside Valid Ground Area — Move cursor inside the golden boundary'}
-                </span>
-                <button
-                  onClick={() => onSelectCrackerForPlacement(null)}
-                  className="ml-1 px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-[11px] text-white flex items-center gap-1 cursor-pointer"
-                >
-                  <XCircle className="w-3.5 h-3.5" /> Cancel
-                </button>
-              </div>
-            ) : interactionState === 'approaching' ? (
-              <div className="px-4 py-1.5 rounded-full bg-amber-500/90 text-slate-950 font-bold text-xs flex items-center gap-2.5 shadow-lg animate-pulse">
-                <Flame className="w-4 h-4 fill-current text-slate-950" />
-                <span>Approaching cracker fuse...</span>
-              </div>
-            ) : interactionState === 'reaching_fuse' || interactionState === 'igniting' ? (
-              <div className="px-4 py-1.5 rounded-full bg-orange-600 text-white font-bold text-xs flex items-center gap-2.5 shadow-lg animate-pulse">
-                <Flame className="w-4 h-4 fill-current text-amber-300" />
-                <span>Lighting fuse with incense stick...</span>
-              </div>
-            ) : interactionState === 'retreating' ? (
-              <div className="px-4 py-1.5 rounded-full bg-rose-600 text-white font-extrabold text-xs flex items-center gap-2.5 shadow-lg shadow-rose-600/40 animate-bounce">
-                <Flame className="w-4 h-4 fill-current text-amber-300" />
-                <span>Fuse Lit! Automatically retreating to safety...</span>
-              </div>
-            ) : interactionState === 'safe' ? (
-              <div className="px-4 py-1.5 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center gap-2.5 shadow-lg">
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>Safe distance reached! Awaiting fireworks blast...</span>
-              </div>
-            ) : interactionState === 'celebrating' || interactionState === 'exploding' ? (
-              <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-slate-950 font-extrabold text-xs flex items-center gap-2.5 shadow-xl shadow-amber-500/40">
-                <Sparkles className="w-4 h-4 fill-current animate-spin" />
-                <span>Happy Diwali! Fireworks in progress — Celebrating!</span>
-              </div>
-            ) : nearestInteractableCracker ? (
-              <div className="px-4 py-1.5 rounded-full bg-amber-500/95 text-slate-950 font-extrabold text-xs flex items-center gap-3 shadow-xl shadow-amber-500/30 animate-bounce">
-                <Flame className="w-4 h-4 fill-current" />
-                <span>
-                  Near Fuse: {CRACKERS[nearestInteractableCracker.crackerId].name}
-                </span>
-                <button
-                  onClick={() =>
-                    onIgniteCracker(nearestInteractableCracker.instanceId)
-                  }
-                  className="px-3 py-0.5 rounded-full bg-slate-950 text-amber-300 hover:bg-slate-900 font-bold text-xs cursor-pointer"
-                >
-                  Press [E] or Click to Approach & Light!
-                </button>
-              </div>
-            ) : placedReadyCrackers.length > 0 ? (
-              <div className="px-4 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-amber-400/40 text-xs text-amber-100 flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span>
-                  {placedReadyCrackers.length} cracker
-                  {placedReadyCrackers.length > 1 ? 's' : ''} placed on ground —
-                  Walk close to any cracker and press <strong>[E]</strong> to light safely!
-                </span>
-              </div>
-            ) : activeShowCrackers.length > 0 ? (
-              <div className="px-4 py-1.5 rounded-full bg-indigo-950/85 backdrop-blur-md border border-amber-400/40 text-xs text-amber-200 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
-                <span>
-                  Fireworks Active! Automatic celebration in progress!
-                </span>
-              </div>
-            ) : (
-              <div className="px-4 py-1.5 rounded-full bg-slate-950/70 backdrop-blur-md border border-white/10 text-xs text-slate-300 hidden md:flex items-center gap-2">
-                <span>
-                  Move: <strong className="text-white">WASD / Arrows</strong> •
-                  Run: <strong className="text-white">Shift</strong> • Select a
-                  cracker below to place & ignite!
-                </span>
-              </div>
+        {/* ── Status Prompt Toast (Centered, sleek, compact) ───────────────── */}
+        <div className="pointer-events-auto mx-auto max-w-xl text-center flex flex-col items-center gap-1">
+          {/* Optional Telemetry Sub-row */}
+          <div className="hidden lg:flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-950/60 border border-white/10 text-[10px] text-slate-300">
+            <span>Pose: <strong className="text-amber-300">{characterAnimState}</strong></span>
+            <span>•</span>
+            <span>Particles: <strong className="text-amber-300 font-mono">{activeParticleCount}</strong></span>
+            {activeShowCrackers.length > 0 && (
+              <>
+                <span>•</span>
+                <span className="text-orange-400 font-bold">{activeShowCrackers.length} active show</span>
+              </>
             )}
           </div>
+          {selectedCrackerForPlacement ? (
+            <div
+              className={`px-3 py-1 rounded-full backdrop-blur-md border text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-2 shadow-lg ${
+                !hasHoverPoint
+                  ? 'bg-slate-950/85 border-amber-400/40 text-amber-100'
+                  : isValidHover
+                  ? 'bg-emerald-950/85 border-emerald-400/50 text-emerald-200'
+                  : 'bg-rose-950/85 border-rose-400/50 text-rose-200'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">
+                {!hasHoverPoint
+                  ? `Placing ${CRACKERS[selectedCrackerForPlacement].name}: Tap on ground`
+                  : isValidHover
+                  ? `Valid Ground — Tap to place ${CRACKERS[selectedCrackerForPlacement].name}`
+                  : 'Outside Ground Area — Tap inside golden line'}
+              </span>
+              <button
+                onClick={() => onSelectCrackerForPlacement(null)}
+                className="ml-1 px-1.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-[10px] text-white flex items-center gap-0.5 cursor-pointer shrink-0"
+              >
+                <XCircle className="w-3 h-3" /> Cancel
+              </button>
+            </div>
+          ) : interactionState === 'approaching' ? (
+            <div className="px-3.5 py-1 rounded-full bg-amber-500/90 text-slate-950 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-lg animate-pulse">
+              <Flame className="w-3.5 h-3.5 fill-current text-slate-950" />
+              <span>Approaching cracker fuse...</span>
+            </div>
+          ) : interactionState === 'reaching_fuse' || interactionState === 'igniting' ? (
+            <div className="px-3.5 py-1 rounded-full bg-orange-600 text-white font-bold text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-lg animate-pulse">
+              <Flame className="w-3.5 h-3.5 fill-current text-amber-300" />
+              <span>Lighting fuse with incense stick...</span>
+            </div>
+          ) : interactionState === 'retreating' ? (
+            <div className="px-3.5 py-1 rounded-full bg-rose-600 text-white font-extrabold text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/40 animate-bounce">
+              <Flame className="w-3.5 h-3.5 fill-current text-amber-300" />
+              <span>Fuse Lit! Automatically retreating to safety...</span>
+            </div>
+          ) : interactionState === 'safe' ? (
+            <div className="px-3.5 py-1 rounded-full bg-emerald-600 text-white font-bold text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-lg">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Safe distance reached! Awaiting fireworks blast...</span>
+            </div>
+          ) : interactionState === 'celebrating' || interactionState === 'exploding' ? (
+            <div className="px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-slate-950 font-extrabold text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-xl shadow-amber-500/40">
+              <Sparkles className="w-3.5 h-3.5 fill-current animate-spin" />
+              <span>Happy Diwali! Fireworks in progress — Celebrating!</span>
+            </div>
+          ) : nearestInteractableCracker ? (
+            <div className="px-3.5 py-1 rounded-full bg-amber-500/95 text-slate-950 font-extrabold text-[11px] sm:text-xs flex items-center justify-center gap-2 shadow-xl shadow-amber-500/30 animate-bounce">
+              <Flame className="w-3.5 h-3.5 fill-current" />
+              <span>
+                Near {CRACKERS[nearestInteractableCracker.crackerId].name}
+              </span>
+              <button
+                onClick={() =>
+                  onIgniteCracker(nearestInteractableCracker.instanceId)
+                }
+                className="px-2.5 py-0.5 rounded-full bg-slate-950 text-amber-300 hover:bg-slate-900 font-bold text-[11px] cursor-pointer"
+              >
+                Approach & Light [E]
+              </button>
+            </div>
+          ) : placedReadyCrackers.length > 0 ? (
+            <div className="px-3.5 py-0.5 rounded-full bg-slate-950/80 backdrop-blur-md border border-amber-400/30 text-[11px] text-amber-100 flex items-center justify-center gap-2">
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              <span>
+                Walk close to any placed cracker & press <strong>[E]</strong> to light safely!
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {/* CONTROLS HELP POPOVER */}
+      {/* ── CONTROLS HELP MODAL ────────────────────────────────────────────── */}
       {showControlsHelp && (
-        <div className="pointer-events-auto self-end mr-2 max-w-sm rounded-2xl bg-slate-950/90 backdrop-blur-xl border border-amber-400/30 p-4 text-xs text-slate-200 shadow-2xl space-y-2.5">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2">
-            <span className="font-bold text-amber-300 uppercase tracking-wider">
-              Controls & Gameplay Guide
-            </span>
+        <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-sm rounded-2xl bg-slate-950/95 border border-amber-400/30 p-4 text-xs text-slate-200 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <span className="font-bold text-amber-300 uppercase tracking-wider">
+                Controls & Gameplay Guide
+              </span>
+              <button
+                onClick={() => setShowControlsHelp(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <strong className="text-white block">W, A, S, D / D-Pad</strong>
+                <span className="text-slate-400">Walk around the 3D scene</span>
+              </div>
+              <div>
+                <strong className="text-white block">Hold Shift / RUN</strong>
+                <span className="text-slate-400">Jog / Sprint speed</span>
+              </div>
+              <div>
+                <strong className="text-white block">Tap Cracker Icon</strong>
+                <span className="text-slate-400">Select to place on ground</span>
+              </div>
+              <div>
+                <strong className="text-white block">Tap Ground</strong>
+                <span className="text-slate-400">Place selected cracker</span>
+              </div>
+              <div>
+                <strong className="text-white block">Press E / Light Btn</strong>
+                <span className="text-slate-400">Approach, ignite & retreat</span>
+              </div>
+              <div>
+                <strong className="text-white block">Auto-Celebration</strong>
+                <span className="text-slate-400">Runs & celebrates automatically!</span>
+              </div>
+            </div>
             <button
               onClick={() => setShowControlsHelp(false)}
-              className="text-slate-400 hover:text-white"
+              className="w-full py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs"
             >
-              ✕
+              Got it, Let&apos;s Play!
             </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <strong className="text-white block">W, A, S, D / Arrows</strong>
-              <span className="text-slate-400">Walk around scene</span>
-            </div>
-            <div>
-              <strong className="text-white block">Hold Shift</strong>
-              <span className="text-slate-400">Run / Jog</span>
-            </div>
-            <div>
-              <strong className="text-white block">Keys 1 – 6</strong>
-              <span className="text-slate-400">Select cracker type</span>
-            </div>
-            <div>
-              <strong className="text-white block">Click / Tap Ground</strong>
-              <span className="text-slate-400">Place selected cracker</span>
-            </div>
-            <div>
-              <strong className="text-white block">Press E / Ignite Btn</strong>
-              <span className="text-slate-400">Approach, light & retreat safely</span>
-            </div>
-            <div>
-              <strong className="text-white block">Hold C / Hold G</strong>
-              <span className="text-slate-400">Crouch / Auto-Celebrates</span>
-            </div>
           </div>
         </div>
       )}
 
-      {/* PAUSE OVERLAY MODAL */}
+      {/* ── PAUSE OVERLAY MODAL ────────────────────────────────────────────── */}
       {isPaused && (
-        <div className="pointer-events-auto fixed inset-0 z-40 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-[#110f24] border border-amber-400/30 p-6 text-center shadow-2xl space-y-5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto">
-              <Pause className="w-6 h-6" />
+        <div className="pointer-events-auto fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="w-full max-w-sm rounded-2xl bg-[#110f24] border border-amber-400/30 p-5 text-center shadow-2xl space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto">
+              <Pause className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-white">
+              <h2 className="text-lg font-black text-white">
                 Simulation Paused
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
-                {activeEnv.name} • {settings.timeOfDay.toUpperCase()} •{' '}
-                {settings.weather.toUpperCase()}
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {activeEnv.name} • {settings.timeOfDay.toUpperCase()} • {settings.weather.toUpperCase()}
               </p>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <button
                 onClick={onTogglePause}
-                className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-current" /> Resume Celebration
               </button>
@@ -567,123 +658,99 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   onTogglePause();
                   onOpenSetupStudio();
                 }}
-                className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Settings className="w-4 h-4" /> Customize Environment, Time & Weather
+                <Settings className="w-3.5 h-3.5" /> Customize Scene & Weather
               </button>
               <button
                 onClick={() => {
                   onRestartScene();
                   onTogglePause();
                 }}
-                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-amber-200 font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-amber-200 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <RotateCcw className="w-4 h-4" /> Clear Ground & Reset Character
+                <RotateCcw className="w-3.5 h-3.5" /> Clear Ground & Reset Character
               </button>
               <button
                 onClick={onBackToLanding}
-                className="w-full py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Home className="w-4 h-4" /> Return to Landing Page
+                <Home className="w-3.5 h-3.5" /> Return to Landing Page
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* BOTTOM SECTION: Mobile Touch Controls + Cracker Inventory Dock */}
-      <div className="flex flex-col gap-3">
-        {/* Touch / Quick Action Controls Row */}
-        <div className="flex items-end justify-between gap-2">
-          {/* Directional D-Pad for Mobile & Touch */}
-          <div className="pointer-events-auto grid grid-cols-3 gap-1 w-28 h-28 sm:w-32 sm:h-32 bg-slate-950/65 backdrop-blur-md border border-white/15 rounded-2xl p-1.5 shadow-xl">
-            <div />
-            <button
-              type="button"
-              onPointerDown={() => setTouchDirection('up', true)}
-              onPointerUp={() => setTouchDirection('up', false)}
-              onPointerLeave={() => setTouchDirection('up', false)}
-              className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
-              aria-label="Move Forward"
-            >
-              ▲
-            </button>
-            <div />
-            <button
-              type="button"
-              onPointerDown={() => setTouchDirection('left', true)}
-              onPointerUp={() => setTouchDirection('left', false)}
-              onPointerLeave={() => setTouchDirection('left', false)}
-              className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
-              aria-label="Move Left"
-            >
-              ◀
-            </button>
-            <button
-              type="button"
-              onPointerDown={() => {
-                inputRef.current.run = !inputRef.current.run;
-              }}
-              className={`rounded-xl font-bold text-[10px] flex items-center justify-center select-none ${
-                inputRef.current.run
-                  ? 'bg-amber-400 text-slate-950'
-                  : 'bg-white/5 text-amber-300'
-              }`}
-              title="Toggle Sprint"
-            >
-              RUN
-            </button>
-            <button
-              type="button"
-              onPointerDown={() => setTouchDirection('right', true)}
-              onPointerUp={() => setTouchDirection('right', false)}
-              onPointerLeave={() => setTouchDirection('right', false)}
-              className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
-              aria-label="Move Right"
-            >
-              ▶
-            </button>
-            <div />
-            <button
-              type="button"
-              onPointerDown={() => setTouchDirection('down', true)}
-              onPointerUp={() => setTouchDirection('down', false)}
-              onPointerLeave={() => setTouchDirection('down', false)}
-              className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
-              aria-label="Move Backward"
-            >
-              ▼
-            </button>
-            <div />
-          </div>
-
-          {/* Right-side Action Buttons */}
-          <div className="pointer-events-auto flex flex-col sm:flex-row items-end sm:items-center gap-2">
-            {(interactionState === 'celebrating' || interactionState === 'exploding') && (
-              <div className="px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-400/40 backdrop-blur-md text-xs font-extrabold text-amber-300 flex items-center gap-2 shadow-lg animate-pulse">
-                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" /> Celebrating Diwali!
-              </div>
-            )}
-
-            {interactionState === 'idle' && nearestInteractableCracker && (
-              <button
-                type="button"
-                onClick={() =>
-                  onIgniteCracker(nearestInteractableCracker.instanceId)
-                }
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-amber-500/30 cursor-pointer animate-pulse"
-              >
-                <Flame className="w-5 h-5 fill-current" />
-                <span>
-                  Light {CRACKERS[nearestInteractableCracker.crackerId].name} [E]
-                </span>
-              </button>
-            )}
-          </div>
+      {/* ── BOTTOM DOCK: Responsive Landscape Gamepad & Cracker Carousel ─── */}
+      <div className="flex items-end justify-between gap-2 w-full">
+        {/* Left: Directional D-Pad with touch-action: none */}
+        <div
+          className="pointer-events-auto grid grid-cols-3 gap-1 w-24 h-24 sm:w-28 sm:h-28 bg-slate-950/75 backdrop-blur-md border border-white/15 rounded-2xl p-1 shadow-2xl shrink-0"
+          style={{ touchAction: 'none' }}
+        >
+          <div />
+          <button
+            type="button"
+            onPointerDown={() => setTouchDirection('up', true)}
+            onPointerUp={() => setTouchDirection('up', false)}
+            onPointerLeave={() => setTouchDirection('up', false)}
+            className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
+            aria-label="Move Forward"
+          >
+            ▲
+          </button>
+          <div />
+          <button
+            type="button"
+            onPointerDown={() => setTouchDirection('left', true)}
+            onPointerUp={() => setTouchDirection('left', false)}
+            onPointerLeave={() => setTouchDirection('left', false)}
+            className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
+            aria-label="Move Left"
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            onPointerDown={() => {
+              inputRef.current.run = !inputRef.current.run;
+            }}
+            className={`rounded-xl font-black text-[9px] sm:text-[10px] flex items-center justify-center select-none ${
+              inputRef.current.run
+                ? 'bg-amber-400 text-slate-950'
+                : 'bg-white/5 text-amber-300'
+            }`}
+            title="Toggle Sprint"
+          >
+            RUN
+          </button>
+          <button
+            type="button"
+            onPointerDown={() => setTouchDirection('right', true)}
+            onPointerUp={() => setTouchDirection('right', false)}
+            onPointerLeave={() => setTouchDirection('right', false)}
+            className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
+            aria-label="Move Right"
+          >
+            ▶
+          </button>
+          <div />
+          <button
+            type="button"
+            onPointerDown={() => setTouchDirection('down', true)}
+            onPointerUp={() => setTouchDirection('down', false)}
+            onPointerLeave={() => setTouchDirection('down', false)}
+            className="rounded-xl bg-white/10 active:bg-amber-400 active:text-slate-950 text-white font-bold text-xs flex items-center justify-center select-none"
+            aria-label="Move Backward"
+          >
+            ▼
+          </button>
+          <div />
         </div>
 
-        {/* Bottom Cracker Inventory Dock */}
-        <div className="pointer-events-auto mx-auto w-full max-w-4xl bg-slate-950/80 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-2 shadow-2xl flex items-center gap-2 overflow-x-auto">
+        {/* Center: Cracker Carousel Dock (Horizontal, touch scrollable) */}
+        <div className="pointer-events-auto flex-1 min-w-0 max-w-2xl bg-slate-950/85 backdrop-blur-xl border border-amber-500/30 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1.5 overflow-x-auto scrollbar-none">
           {CRACKER_LIST.map((cracker, idx) => {
             const isSelected = selectedCrackerForPlacement === cracker.id;
             return (
@@ -693,40 +760,76 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 onClick={() =>
                   onSelectCrackerForPlacement(isSelected ? null : cracker.id)
                 }
-                className={`group relative flex-1 min-w-[105px] sm:min-w-[120px] p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer ${
+                className={`group relative h-12 sm:h-14 min-w-[86px] sm:min-w-[110px] p-1 sm:p-1.5 rounded-xl border text-left transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   isSelected
-                    ? 'border-amber-400 bg-amber-500/20 shadow-[0_0_20px_rgba(251,191,36,0.2)]'
+                    ? 'border-amber-400 bg-amber-500/25 shadow-[0_0_15px_rgba(251,191,36,0.25)]'
                     : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-amber-400/40'
                 }`}
               >
-                <span className="absolute top-1.5 right-2 text-[10px] font-mono text-slate-400">
+                <span className="absolute top-1 right-1.5 text-[9px] font-mono text-slate-400">
                   {idx + 1}
                 </span>
-                <div className="w-10 h-10 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
-                  <CrackerIcon crackerId={cracker.id} className="w-7 h-7" />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
+                  <CrackerIcon crackerId={cracker.id} className="w-6 h-6 sm:w-7 sm:h-7" />
                 </div>
-                <div className="min-w-0 pr-2">
-                  <div className="text-xs font-bold text-white truncate">
+                <div className="min-w-0 pr-1">
+                  <div className="text-[10px] sm:text-xs font-bold text-white truncate">
                     {cracker.name}
                   </div>
-                  <div className="text-[10px] text-amber-300/80 truncate">
-                    {isSelected ? 'Click Ground' : cracker.category}
+                  <div className="text-[8px] sm:text-[9px] text-amber-300/80 truncate">
+                    {isSelected ? 'Tap Ground' : cracker.category}
                   </div>
                 </div>
               </button>
             );
           })}
 
-          {/* Open Full Cracker Collection Button */}
+          {/* Collection Trigger Button */}
           <button
             type="button"
             onClick={onOpenCollection}
-            className="shrink-0 px-3.5 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-200 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer"
+            className="h-12 sm:h-14 shrink-0 px-2.5 sm:px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-200 text-xs font-bold flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer"
             title="Open Full Cracker Collection"
           >
             <Layers className="w-4 h-4 text-amber-400" />
-            <span className="text-[10px]">Collection</span>
+            <span className="text-[9px] sm:text-[10px]">Collection</span>
           </button>
+        </div>
+
+        {/* Right: Primary Context Action Button */}
+        <div className="pointer-events-auto shrink-0 flex items-center gap-1.5">
+          {(interactionState === 'celebrating' || interactionState === 'exploding') && (
+            <div className="px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-amber-500/20 border border-amber-400/40 backdrop-blur-md text-[11px] sm:text-xs font-extrabold text-amber-300 flex items-center gap-1.5 shadow-lg animate-pulse">
+              <Sparkles className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
+              <span>Celebrating!</span>
+            </div>
+          )}
+
+          {interactionState === 'idle' && nearestInteractableCracker && (
+            <button
+              type="button"
+              onClick={() =>
+                onIgniteCracker(nearestInteractableCracker.instanceId)
+              }
+              className="px-3.5 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-xl shadow-amber-500/30 cursor-pointer animate-pulse"
+            >
+              <Flame className="w-4 h-4 sm:w-5 sm:h-5 fill-current shrink-0" />
+              <span>
+                Light {CRACKERS[nearestInteractableCracker.crackerId].name.split(' ')[0]} [E]
+              </span>
+            </button>
+          )}
+
+          {selectedCrackerForPlacement && (
+            <button
+              type="button"
+              onClick={() => onSelectCrackerForPlacement(null)}
+              className="px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <XCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Cancel</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

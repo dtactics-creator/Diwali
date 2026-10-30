@@ -40,19 +40,19 @@ export const AssetManifestModal: React.FC<AssetManifestModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#131126] via-[#0f0d1e] to-[#090812] text-amber-50 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+      <div className="relative w-full max-w-4xl max-h-[94vh] sm:max-h-[90vh] flex flex-col rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#131126] via-[#0f0d1e] to-[#090812] text-amber-50 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-amber-500/20 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-400">
-              <FileBox className="w-5 h-5" />
+        <div className="flex items-center justify-between px-4 py-2.5 sm:px-6 sm:py-4 border-b border-amber-500/20 bg-white/[0.02]">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-400">
+              <FileBox className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-amber-100">
+              <h2 className="text-base sm:text-xl font-bold tracking-tight text-amber-100">
                 Asset Manifest & GLB Rig Inspector
               </h2>
-              <p className="text-xs text-amber-200/70">
+              <p className="text-[10px] sm:text-xs text-amber-200/70">
                 Transparent verification of bundled 2D plates, 3D rigs, fallback status & live GLB replacement
               </p>
             </div>
@@ -60,14 +60,14 @@ export const AssetManifestModal: React.FC<AssetManifestModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-amber-200/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg text-amber-200/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             aria-label="Close Asset Manifest"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-3 sm:p-6 overflow-y-auto space-y-4 sm:space-y-6">
           {/* Live GLB Character Hot-Swap Panel */}
           <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-400/30">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

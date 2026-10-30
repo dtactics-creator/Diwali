@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   CharacterAnimationState,
   PlayableBounds,
+  RocketTrackData,
 } from '../../types/game';
 
 export interface CharacterInputState {
@@ -34,6 +35,7 @@ interface PlayerCharacter3DProps {
   customGlbUrl?: string | null;
   onAssetStatusChange?: (loadedCustom: boolean, availableClips: string[]) => void;
   enableShadows: boolean;
+  rocketTrackRef?: React.MutableRefObject<RocketTrackData>;
 }
 
 function createDenimTexture(): THREE.CanvasTexture {
@@ -566,6 +568,7 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
   customGlbUrl,
   onAssetStatusChange,
   enableShadows,
+  rocketTrackRef,
 }) => {
   const rootGroupRef = useRef<THREE.Group>(null);
   const rigRootRef = useRef<THREE.Group>(null);
@@ -605,23 +608,28 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
     if (rootGroupRef.current) {
       rootGroupRef.current.position.copy(posRef.current);
     }
-    onPositionChange([spawnPosition[0], groundY, spawnPosition[2]], 'Idle');
+    const t = setTimeout(() => {
+      onPositionChange([spawnPosition[0], groundY, spawnPosition[2]], 'Idle');
+    }, 0);
+    return () => clearTimeout(t);
   }, [spawnPosition[0], spawnPosition[1], spawnPosition[2], groundY]);
 
   // Attempt loading external or user-uploaded GLB when provided
   useEffect(() => {
     if (!customGlbUrl) {
       setUsingCustomGlb(false);
-      onAssetStatusChange?.(false, [
-        'Idle',
-        'Walk',
-        'Run',
-        'Turn',
-        'Crouch',
-        'Ignite',
-        'Celebrate',
-      ]);
-      return;
+      const t = setTimeout(() => {
+        onAssetStatusChange?.(false, [
+          'Idle',
+          'Walk',
+          'Run',
+          'Turn',
+          'Crouch',
+          'Ignite',
+          'Celebrate',
+        ]);
+      }, 0);
+      return () => clearTimeout(t);
     }
 
     const loader = new GLTFLoader();
@@ -931,10 +939,15 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
     // Prevent accumulated velocity from pushing against a movement boundary.
     if (posRef.current.x <= movementBounds.minX || posRef.current.x >= movementBounds.maxX) velocityRef.current.x = 0;
     if (posRef.current.z <= movementBounds.minZ || posRef.current.z >= movementBounds.maxZ) velocityRef.current.z = 0;
+    // Always enforce exact ground altitude so character feet stay firmly anchored to the floor
+    posRef.current.y = groundY;
 
     if (rootGroupRef.current) {
       rootGroupRef.current.position.copy(posRef.current);
       rootGroupRef.current.rotation.y = rotYRef.current;
+      // Character stays firmly on the street floor; cleanly hidden when camera points to sky
+      const tilt = rocketTrackRef?.current?.cameraTiltProgress ?? 0;
+      rootGroupRef.current.visible = tilt < 0.22;
     }
 
     // Throttle parent state callback to ~15Hz to avoid React re-render overhead in frame loop
@@ -968,7 +981,7 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
       <group ref={customModelGroupRef} visible={usingCustomGlb} />
 
       {/* Built-in 17-Bone Articulated 3D Human Character Rig */}
-      <group ref={rigRootRef} visible={!usingCustomGlb}>
+      <group ref={rigRootRef} visible={!usingCustomGlb} position={[0, -0.04, 0]}>
         {/* HIPS ROOT BONE (Y = 0.96m) */}
         <group name="Hips" position={[0, 0.96, 0]}>
           {/* Pelvis / Denim Waistband */}

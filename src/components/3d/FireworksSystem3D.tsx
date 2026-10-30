@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CRACKERS } from '../../config/crackers';
 import { audioSystem } from '../../systems/AudioSystem';
-import { GraphicsConfig, PlacedCrackerInstance } from '../../types/game';
+import { GraphicsConfig, PlacedCrackerInstance, RocketTrackData } from '../../types/game';
 import { getCrackerWorldFusePosition } from './CrackerModels3D';
 
 // ─── Sprite Textures ──────────────────────────────────────────────────────────
@@ -201,6 +201,8 @@ interface FireworksSystem3DProps {
   contrastBoost: number;
   onCameraShake: (intensity: number) => void;
   onActiveParticleCountChange?: (count: number) => void;
+  /** Shared ref written every frame so SceneEnvironment3D can follow aerial projectiles */
+  rocketTrackRef: React.MutableRefObject<RocketTrackData>;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -213,6 +215,7 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
   contrastBoost,
   onCameraShake,
   onActiveParticleCountChange,
+  rocketTrackRef,
 }) => {
   const sparkGeoRef = useRef<THREE.BufferGeometry>(null);
   const emberGeoRef = useRef<THREE.BufferGeometry>(null);
@@ -382,7 +385,18 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
     let l2pos: [number, number, number] | null = null, l2col = '#f97316', l2int = 0;
     let l3pos: [number, number, number] | null = null, l3col = '#ffffff', l3int = 0;
 
-    // ── Per-cracker emission ────────────────────────────────────────────────
+    // Decay rocket/aerial camera-follow hold timer and auto-deactivate
+    if (rocketTrackRef.current.active && rocketTrackRef.current.holdSecondsLeft > 0) {
+      rocketTrackRef.current.holdSecondsLeft = Math.max(
+        0,
+        rocketTrackRef.current.holdSecondsLeft - dt
+      );
+      if (rocketTrackRef.current.holdSecondsLeft <= 0) {
+        rocketTrackRef.current.active = false;
+      }
+    }
+
+    // 1. Emit particles for each placed cracker in 'Igniting' or 'Active' state
     for (const inst of placedCrackers) {
       if (inst.state !== 'Igniting' && inst.state !== 'Active') continue;
 
@@ -596,10 +610,20 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
             0.45 + Math.random() * 0.35, 1.4, 0.8
           );
           l1pos = [px, rocketY, pz]; l1col = '#fbbf24'; l1int = 4.5;
+
+          // --- CAMERA FOLLOW: track the ascending rocket ---
+          if (!rocketTrackRef.current.active || rocketY > rocketTrackRef.current.y) {
+            rocketTrackRef.current.active = true;
+            rocketTrackRef.current.x = px;
+            rocketTrackRef.current.y = rocketY;
+            rocketTrackRef.current.z = pz;
+            rocketTrackRef.current.holdSecondsLeft = 1.8;
+          }
         } else if (!tk.rocketExploded) {
           // Aerial burst
           tk.rocketExploded = true;
           const bY = py + 0.38 + cfg.effect.launchHeight;
+
           audioSystem.playAerialExplosion(1.0);
           if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
           // Central flash sparks
@@ -627,12 +651,20 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
             );
           }
           l2pos = [px, bY, pz]; l2col = '#fef08a'; l2int = cfg.effect.lightIntensity * 1.6;
+
+          // --- CAMERA FOLLOW: lock to burst point and start hold countdown ---
+          rocketTrackRef.current.active = true;
+          rocketTrackRef.current.x = px;
+          rocketTrackRef.current.y = bY;
+          rocketTrackRef.current.z = pz;
+          rocketTrackRef.current.holdSecondsLeft = 1.8;
         } else if (ae < fDur + 0.45) {
           // Brief post-burst light fade
           const fade = 1 - (ae - fDur) / 0.45;
           l2pos = [px, py + cfg.effect.launchHeight, pz];
           l2col = '#fef08a'; l2int = cfg.effect.lightIntensity * fade;
         }
+        // Post-burst hold decay is handled by the global timer at the top of useFrame
       }
 
       // ════ E. AERIAL FIREWORKS BATTERY — Sequential multi-colour shells ═
@@ -700,6 +732,15 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
 
           l2pos = [px + ox, bY, bZ]; l2col = cp[0]; l2int = cfg.effect.lightIntensity * 1.4;
           l3pos = [px - ox * 0.5, bY - 0.5, bZ]; l3col = pal.secondary[0]; l3int = cfg.effect.lightIntensity * 0.8;
+
+          // --- CAMERA FOLLOW: track each successive aerial shell burst ---
+          if (!rocketTrackRef.current.active || bY >= rocketTrackRef.current.y - 0.5) {
+            rocketTrackRef.current.active = true;
+            rocketTrackRef.current.x = px + ox;
+            rocketTrackRef.current.y = bY;
+            rocketTrackRef.current.z = bZ;
+            rocketTrackRef.current.holdSecondsLeft = 2.2;
+          }
         }
       }
 

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   EnvironmentConfig,
+  RocketTrackData,
   TimeOfDayConfig,
   WeatherConfig,
 } from '../../types/game';
@@ -11,6 +12,8 @@ interface BackgroundStageProps {
   weather: WeatherConfig;
   weatherEffectsEnabled: boolean;
   isPreview?: boolean;
+  /** Shared ref written by FireworksSystem3D; drives background pan when rockets fire */
+  rocketTrackRef?: React.MutableRefObject<RocketTrackData>;
 }
 
 export const BackgroundStage: React.FC<BackgroundStageProps> = ({
@@ -19,9 +22,35 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
   weather,
   weatherEffectsEnabled,
   isPreview = false,
+  rocketTrackRef,
 }) => {
-  const [dayImgError, setDayImgError] = useState(false);
+  const [dayImgError, setDayImgError]   = useState(false);
   const [nightImgError, setNightImgError] = useState(false);
+
+  const dayImgRef   = useRef<HTMLImageElement>(null);
+  const nightImgRef = useRef<HTMLImageElement>(null);
+
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const track = rocketTrackRef?.current;
+      // Slaved directly to 3D camera tilt progress: 0 = street floor (100%), 1 = pure high sky (0%)
+      const tilt = track?.cameraTiltProgress ?? 0;
+      const posY = (100 - tilt * 100).toFixed(2);
+      const posStr = `center ${posY}%`;
+
+      if (dayImgRef.current)   dayImgRef.current.style.objectPosition   = posStr;
+      if (nightImgRef.current) nightImgRef.current.style.objectPosition = posStr;
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [rocketTrackRef]);
 
   const showCloudLayer =
     weatherEffectsEnabled && (weather.id === 'cloudy' || weather.id === 'rain');
@@ -44,11 +73,13 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
       {/* 1. Base Daylight Plate */}
       {!dayImgError ? (
         <img
+          ref={dayImgRef}
           src={environment.backgrounds.day}
           alt={`${environment.name} Daylight`}
           onError={() => setDayImgError(true)}
-          className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-700"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
           style={{
+            objectPosition: environment.backgroundPosition || 'center 100%',
             opacity: 1,
           }}
         />
@@ -63,11 +94,13 @@ export const BackgroundStage: React.FC<BackgroundStageProps> = ({
       {/* 2. Dedicated Festive Night Plate (Cross-fades smoothly for Sunset / Dusk / Night) */}
       {!nightImgError ? (
         <img
+          ref={nightImgRef}
           src={environment.backgrounds.night}
           alt={`${environment.name} Night`}
           onError={() => setNightImgError(true)}
-          className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-700"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
           style={{
+            objectPosition: environment.backgroundPosition || 'center 100%',
             opacity: timeOfDay.nightPlateOpacity,
           }}
         />

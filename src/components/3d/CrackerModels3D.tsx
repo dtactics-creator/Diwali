@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CRACKERS } from '../../config/crackers';
-import { CrackerId, PlacedCrackerInstance } from '../../types/game';
+import { CrackerId, PlacedCrackerInstance, RocketTrackData } from '../../types/game';
 
 // ─── Cracker Fuse Offsets (in local model space) ────────────────────────────
 export const CRACKER_FUSE_OFFSETS: Record<CrackerId, [number, number, number]> = {
@@ -680,6 +680,7 @@ interface PlacedCrackersManager3DProps {
   nearestInteractableId: string | null;
   currentTimeMs: number;
   onSelectPlacedCracker: (instanceId: string) => void;
+  rocketTrackRef?: React.MutableRefObject<RocketTrackData>;
 }
 
 export const PlacedCrackersManager3D: React.FC<PlacedCrackersManager3DProps> = ({
@@ -687,9 +688,18 @@ export const PlacedCrackersManager3D: React.FC<PlacedCrackersManager3DProps> = (
   nearestInteractableId,
   currentTimeMs,
   onSelectPlacedCracker,
+  rocketTrackRef,
 }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const tilt = rocketTrackRef?.current?.cameraTiltProgress ?? 0;
+    if (groupRef.current) {
+      groupRef.current.visible = tilt < 0.22;
+    }
+  });
+
   return (
-    <group>
+    <group ref={groupRef}>
       {placedCrackers.map((item) => {
         const config = CRACKERS[item.crackerId];
         const isNearest = nearestInteractableId === item.instanceId;

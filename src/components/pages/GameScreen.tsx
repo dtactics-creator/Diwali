@@ -16,6 +16,7 @@ import {
   EnvironmentId,
   PlacedCrackerInstance,
   PlayableBounds,
+  RocketTrackData,
   SimulationSettings,
 } from '../../types/game';
 import {
@@ -154,6 +155,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   const prevEnvIdRef = useRef<EnvironmentId>(settings.environment);
   const cameraShakeRef = useRef<number>(0);
+  /** Shared ref: FireworksSystem3D writes rocket/shell position; SceneEnvironment3D reads it */
+  const rocketTrackRef = useRef<RocketTrackData>({
+    active: false,
+    x: 0,
+    y: 0,
+    z: 0,
+    holdSecondsLeft: 0,
+  });
 
   const inputRef = useRef<CharacterInputState>({
     forward: false,
@@ -667,6 +676,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         timeOfDay={timeOfDay}
         weather={weather}
         weatherEffectsEnabled={settings.weatherEffectsEnabled}
+        rocketTrackRef={rocketTrackRef}
       />
 
       {/* 2. Real-Time 3D WebGL Viewport */}
@@ -698,6 +708,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             onGroundHover={handleGroundHover}
             onGroundClick={handleGroundClick}
             cameraShakeRef={cameraShakeRef}
+            rocketTrackRef={rocketTrackRef}
           />
 
           <PlayerCharacter3D
@@ -714,6 +725,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             customGlbUrl={customCharacterGlbUrl}
             onAssetStatusChange={onCharacterAssetStatusChange}
             enableShadows={graphics.enableShadows}
+            rocketTrackRef={rocketTrackRef}
           />
 
           <PlacedCrackersManager3D
@@ -725,6 +737,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             }
             currentTimeMs={nowMs}
             onSelectPlacedCracker={handleIgniteCracker}
+            rocketTrackRef={rocketTrackRef}
           />
 
           <FireworksSystem3D
@@ -735,6 +748,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             contrastBoost={timeOfDay.fireworkContrastBoost}
             onCameraShake={handleCameraShake}
             onActiveParticleCountChange={setActiveParticleCount}
+            rocketTrackRef={rocketTrackRef}
           />
         </Canvas>
       </div>

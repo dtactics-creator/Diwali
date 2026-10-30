@@ -1,7 +1,7 @@
 import { EnvironmentConfig, EnvironmentId } from '../types/game';
 
-import indianStreetDay from '../../public/backgrounds/indian-street/day.jpg';
-import indianStreetNight from '../../public/backgrounds/indian-street/night.jpg';
+import indianStreetDay from '../../public/backgrounds/indian-street/day.png';
+import indianStreetNight from '../../public/backgrounds/indian-street/night.png';
 import playgroundDay from '../../public/backgrounds/playground/day.jpg';
 import playgroundNight from '../../public/backgrounds/playground/night.jpg';
 import gatedCommunityDay from '../../public/backgrounds/gated-community/day.jpg';
@@ -25,26 +25,27 @@ export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentConfig> = {
     },
     publicPaths: {
       day: '/backgrounds/indian-street/day.jpg',
-      night: '/backgrounds/indian-street/night.jpg',
+      night: '/backgrounds/indian-street/night.png',
     },
+    backgroundPosition: 'center bottom',
     camera: {
-      position: [0, 2.35, 7.6],
-      lookAt: [0, 0.95, 0],
-      fov: 42,
+      position: [0, 2.1, 7.2],
+      lookAt: [0, 0.85, 0],
+      fov: 40,
     },
     groundY: 0,
-    characterSpawn: [-1.4, 0, 1.1],
+    characterSpawn: [-0.95, 0, 1.4],
     movementBounds: {
-      minX: -4.2,
-      maxX: 4.2,
-      minZ: -1.8,
-      maxZ: 3.1,
+      minX: -2.8,
+      maxX: 2.8,
+      minZ: -0.6,
+      maxZ: 3.2,
     },
     placementBounds: {
-      minX: -3.6,
-      maxX: 3.6,
-      minZ: -1.4,
-      maxZ: 2.6,
+      minX: -2.2,
+      maxX: 2.2,
+      minZ: -0.4,
+      maxZ: 2.8,
     },
     groundColor: {
       day: '#4a484c',

@@ -55,6 +55,25 @@ export interface PlayableBounds {
   maxZ: number;
 }
 
+/**
+ * Live rocket / aerial-shell tracking data written by FireworksSystem3D
+ * and consumed by SceneEnvironment3D for the cinematic camera follow.
+ */
+export interface RocketTrackData {
+  /** Whether a rocket/shell is currently ascending or still in post-burst hold */
+  active: boolean;
+  /** World-space X of the projectile */
+  x: number;
+  /** World-space Y of the projectile (the target lookAt Y) */
+  y: number;
+  /** World-space Z of the projectile */
+  z: number;
+  /** Seconds remaining in the post-burst hold before camera returns */
+  holdSecondsLeft: number;
+  /** Normalized live camera tilt (0 = on street ground, 1 = sky burst peak) */
+  cameraTiltProgress?: number;
+}
+
 export interface DiyaAnchor {
   x: number;
   z: number;
@@ -77,6 +96,7 @@ export interface EnvironmentConfig {
     day: string;
     night: string;
   };
+  backgroundPosition?: string;
   camera: {
     position: [number, number, number];
     lookAt: [number, number, number];

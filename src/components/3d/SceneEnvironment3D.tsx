@@ -5,6 +5,7 @@ import {
   CrackerId,
   EnvironmentConfig,
   GraphicsConfig,
+  RocketTrackData,
   TimeOfDayConfig,
   WeatherConfig,
 } from '../../types/game';
@@ -22,6 +23,8 @@ interface SceneEnvironment3DProps {
   onGroundHover: (pos: [number, number, number] | null, isValid: boolean) => void;
   onGroundClick: (pos: [number, number, number], isValid: boolean) => void;
   cameraShakeRef: React.MutableRefObject<number>;
+  /** Shared ref from FireworksSystem3D containing live rocket/shell position */
+  rocketTrackRef: React.MutableRefObject<RocketTrackData>;
 }
 
 export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
@@ -36,10 +39,19 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
   onGroundHover,
   onGroundClick,
   cameraShakeRef,
+  rocketTrackRef,
 }) => {
   const { camera } = useThree();
   const rainGeoRef = useRef<THREE.BufferGeometry>(null);
   const diyaFlameRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const groundGroupRef = useRef<THREE.Group>(null);
+  const lookAtPointRef = useRef<THREE.Vector3>(
+    new THREE.Vector3(
+      environment.camera.lookAt[0],
+      environment.camera.lookAt[1],
+      environment.camera.lookAt[2]
+    )
+  );
 
   const rainCount = useMemo(() => {
     if (!weatherEffectsEnabled || !graphics.enableWeatherParticles) return 0;
@@ -64,7 +76,7 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
     return arr;
   }, []);
 
-  // Align camera and apply subtle camera shake
+  // Align camera, apply camera shake, and cinematic rocket-follow
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.1);
     const [cx, cy, cz] = environment.camera.position;
@@ -79,8 +91,37 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
       cameraShakeRef.current = Math.max(0, cameraShakeRef.current - dt * 1.4);
     }
 
-    camera.position.lerp(new THREE.Vector3(cx + shakeX, cy + shakeY, cz), 0.16);
-    camera.lookAt(lx + shakeX * 0.5, ly + shakeY * 0.5, lz);
+    // Keep camera firmly grounded at spectator position, applying screen shake when active
+    camera.position.set(cx + shakeX, cy + shakeY, cz);
+
+    // --- Cinematic Rocket-Follow Camera Tilt ---
+    const track = rocketTrackRef.current;
+    // Decisively tilt all the way up into the open sky toward the ascending burst point,
+    // so the character and ground completely exit below the viewport rather than staying half-way
+    const targetLook = track.active
+      ? new THREE.Vector3(
+          THREE.MathUtils.lerp(lx, track.x, 0.65),
+          Math.max(ly, track.y + 2.0),
+          THREE.MathUtils.lerp(lz, track.z, 0.5)
+        )
+      : new THREE.Vector3(lx, ly, lz);
+
+    // Delta-time based exponential smoothing: exact same crisp 6.0 speed both going up and returning down
+    const lerpSpeed = 6.0;
+    lookAtPointRef.current.lerp(targetLook, 1 - Math.exp(-lerpSpeed * dt));
+    camera.lookAt(lookAtPointRef.current);
+
+    // Compute live camera tilt progress (0 = firmly on street ground, 1 = sky burst peak)
+    const maxLookDelta = Math.max(0.1, 7.4 - ly);
+    const tiltProgress = THREE.MathUtils.clamp(
+      (lookAtPointRef.current.y - ly) / maxLookDelta,
+      0,
+      1
+    );
+    track.cameraTiltProgress = tiltProgress;
+    if (groundGroupRef.current) {
+      groundGroupRef.current.visible = tiltProgress < 0.22;
+    }
 
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       const pCam = camera as THREE.PerspectiveCamera;
@@ -197,109 +238,112 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
         />
       )}
 
-      {/* Raycastable Ground Plane Aligned to Background Horizon */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, environment.groundY, 0.5]}
-        onPointerMove={handlePointerMove}
-        onPointerOut={handlePointerOut}
-        onClick={handleClick}
-        receiveShadow={graphics.enableShadows}
-      >
-        <planeGeometry args={[18, 12]} />
-        <meshStandardMaterial
-          color={environment.groundColor[timeOfDay.id]}
-          roughness={isWet ? 0.18 : environment.groundRoughness}
-          metalness={isWet ? 0.55 : 0.08}
-          transparent
-          opacity={isWet ? 0.34 : 0.16}
-        />
-      </mesh>
-
-      {/* Valid Placement Zone Visual Guide when a Cracker is Selected */}
-      {selectedCrackerForPlacement && (
-        <group
-          position={[boundsCenterX, environment.groundY + 0.005, boundsCenterZ]}
+      {/* Ground-Anchored Elements: firmly tied to image ground, cleanly hidden when camera points to sky */}
+      <group ref={groundGroupRef}>
+        {/* Raycastable Ground Plane Aligned to Background Horizon */}
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, environment.groundY, 0.5]}
+          onPointerMove={handlePointerMove}
+          onPointerOut={handlePointerOut}
+          onClick={handleClick}
+          receiveShadow={graphics.enableShadows}
         >
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[boundsWidth, boundsDepth]} />
-            <meshBasicMaterial
-              color={isValidHover ? '#fbbf24' : '#ef4444'}
-              transparent
-              opacity={0.09}
-              depthWrite={false}
-            />
-          </mesh>
-          <lineSegments position={[0, 0.004, 0]}>
-            <edgesGeometry
-              args={[new THREE.BoxGeometry(boundsWidth, 0.01, boundsDepth)]}
-            />
-            <lineBasicMaterial
-              color={isValidHover ? '#fbbf24' : '#f87171'}
-              transparent
-              opacity={0.65}
-            />
-          </lineSegments>
-        </group>
-      )}
-
-      {/* Live 3D Cracker Placement Preview Ghost */}
-      {selectedCrackerForPlacement && hoverPosition && (
-        <group position={hoverPosition}>
-          <CrackerMeshVisual
-            crackerId={selectedCrackerForPlacement}
-            state="Selected"
-            elapsedInState={0}
-            isPreview
-            isValidPlacement={isValidHover}
+          <planeGeometry args={[18, 12]} />
+          <meshStandardMaterial
+            color={environment.groundColor[timeOfDay.id]}
+            roughness={isWet ? 0.18 : environment.groundRoughness}
+            metalness={isWet ? 0.55 : 0.08}
+            transparent
+            opacity={isWet ? 0.34 : 0.16}
           />
-        </group>
-      )}
+        </mesh>
 
-      {/* 3D Decorative Clay Diyas Anchored in Scene */}
-      {environment.diyaAnchors.map((diya, idx) => {
-        const s = diya.scale || 1;
-        const isLit = timeOfDay.id !== 'day';
-        return (
+        {/* Valid Placement Zone Visual Guide when a Cracker is Selected */}
+        {selectedCrackerForPlacement && (
           <group
-            key={idx}
-            position={[diya.x, environment.groundY, diya.z]}
-            scale={[s, s, s]}
+            position={[boundsCenterX, environment.groundY + 0.005, boundsCenterZ]}
           >
-            {/* Terracotta Clay Bowl */}
-            <mesh position={[0, 0.025, 0]}>
-              <cylinderGeometry args={[0.075, 0.045, 0.05, 16]} />
-              <meshStandardMaterial color="#9a3412" roughness={0.75} />
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[boundsWidth, boundsDepth]} />
+              <meshBasicMaterial
+                color={isValidHover ? '#fbbf24' : '#ef4444'}
+                transparent
+                opacity={0.09}
+                depthWrite={false}
+              />
             </mesh>
-            {/* Glowing Diya Flame */}
-            {isLit && (
-              <group position={[0, 0.065, 0]}>
-                <mesh
-                  ref={(el) => {
-                    diyaFlameRefs.current[idx] = el;
-                  }}
-                >
-                  <coneGeometry args={[0.024, 0.065, 10]} />
-                  <meshBasicMaterial color="#fef08a" />
-                </mesh>
-                {/* Warm Ground Halo under Diya */}
-                <mesh
-                  rotation={[-Math.PI / 2, 0, 0]}
-                  position={[0, -0.06, 0]}
-                >
-                  <circleGeometry args={[0.26, 16]} />
-                  <meshBasicMaterial
-                    color="#f59e0b"
-                    transparent
-                    opacity={0.28 * timeOfDay.festiveLightIntensity}
-                    depthWrite={false}
-                  />
-                </mesh>
-              </group>
-            )}
+            <lineSegments position={[0, 0.004, 0]}>
+              <edgesGeometry
+                args={[new THREE.BoxGeometry(boundsWidth, 0.01, boundsDepth)]}
+              />
+              <lineBasicMaterial
+                color={isValidHover ? '#fbbf24' : '#f87171'}
+                transparent
+                opacity={0.65}
+              />
+            </lineSegments>
           </group>
-        );
-      })}
+        )}
+
+        {/* Live 3D Cracker Placement Preview Ghost */}
+        {selectedCrackerForPlacement && hoverPosition && (
+          <group position={hoverPosition}>
+            <CrackerMeshVisual
+              crackerId={selectedCrackerForPlacement}
+              state="Selected"
+              elapsedInState={0}
+              isPreview
+              isValidPlacement={isValidHover}
+            />
+          </group>
+        )}
+
+        {/* 3D Decorative Clay Diyas Anchored in Scene */}
+        {environment.diyaAnchors.map((diya, idx) => {
+          const s = diya.scale || 1;
+          const isLit = timeOfDay.id !== 'day';
+          return (
+            <group
+              key={idx}
+              position={[diya.x, environment.groundY, diya.z]}
+              scale={[s, s, s]}
+            >
+              {/* Terracotta Clay Bowl */}
+              <mesh position={[0, 0.025, 0]}>
+                <cylinderGeometry args={[0.075, 0.045, 0.05, 16]} />
+                <meshStandardMaterial color="#9a3412" roughness={0.75} />
+              </mesh>
+              {/* Glowing Diya Flame */}
+              {isLit && (
+                <group position={[0, 0.065, 0]}>
+                  <mesh
+                    ref={(el) => {
+                      diyaFlameRefs.current[idx] = el;
+                    }}
+                  >
+                    <coneGeometry args={[0.024, 0.065, 10]} />
+                    <meshBasicMaterial color="#fef08a" />
+                  </mesh>
+                  {/* Warm Ground Halo under Diya */}
+                  <mesh
+                    rotation={[-Math.PI / 2, 0, 0]}
+                    position={[0, -0.06, 0]}
+                  >
+                    <circleGeometry args={[0.26, 16]} />
+                    <meshBasicMaterial
+                      color="#f59e0b"
+                      transparent
+                      opacity={0.28 * timeOfDay.festiveLightIntensity}
+                      depthWrite={false}
+                    />
+                  </mesh>
+                </group>
+              )}
+            </group>
+          );
+        })}
+      </group>
 
       {/* 3D Falling Rain Particles */}
       {rainCount > 0 && (

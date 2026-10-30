@@ -14,7 +14,8 @@ export interface CharacterInputState {
   right: boolean;
   run: boolean;
   crouch: boolean;
-  celebrate: boolean;
+  celebrate: boolean;      // touch/mobile hold-boolean
+  celebrateTrigger: number; // keyboard G: one-shot counter (incremented per press)
   joyX: number;
   joyY: number;
 }
@@ -24,6 +25,9 @@ interface PlayerCharacter3DProps {
   groundY: number;
   movementBounds: PlayableBounds;
   inputRef: React.MutableRefObject<CharacterInputState>;
+  autoMoveTarget?: [number, number, number] | null;
+  autoMoveMode?: 'approach' | 'retreat' | null;
+  onAutoMoveComplete?: () => void;
   forcedState: CharacterAnimationState | null;
   igniteTargetPosition: [number, number, number] | null;
   onPositionChange: (pos: [number, number, number], animState: CharacterAnimationState) => void;
@@ -61,7 +65,7 @@ function createHoodieTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d')!;
 
   const grad = ctx.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#7c1d34');
+  grad.addColorStop(0, '#841d37ff');
   grad.addColorStop(1, '#4c1122');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 256, 256);
@@ -118,63 +122,91 @@ function buildRigAnimationClips(): THREE.AnimationClip[] {
     return new THREE.VectorKeyframeTrack(`${nodeName}.position`, times, values);
   };
 
-  // 1. IDLE CLIP (2.4s loop)
-  const idleTimes = [0, 1.2, 2.4];
-  const idleClip = new THREE.AnimationClip('Idle', 2.4, [
+  // 1. IDLE CLIP (2.6s loop) — Natural breathing & weight shift
+  const idleTimes = [0, 0.65, 1.3, 1.95, 2.6];
+  const idleClip = new THREE.AnimationClip('Idle', 2.6, [
+    // Hips: gentle vertical bob (breathing) + subtle side sway
     vTrack('Hips', idleTimes, [
-      [0, 0.96, 0],
-      [0, 0.945, 0],
-      [0, 0.96, 0],
+      [0, 0.955, 0],
+      [0, 0.968, 0.004],
+      [0, 0.952, 0],
+      [0, 0.965, -0.004],
+      [0, 0.955, 0],
     ]),
+    // Spine: gentle lean variation + side tilt for weight shift
     qTrack('Spine', idleTimes, [
-      [0.02, 0, 0],
-      [0.05, 0.02, 0],
-      [0.02, 0, 0],
+      [0.015, 0.008, 0.006],
+      [0.022, -0.005, -0.004],
+      [0.012, 0.010, 0.003],
+      [0.018, -0.008, -0.006],
+      [0.015, 0.008, 0.006],
     ]),
+    // Head: gentle look-around with subtle nod
     qTrack('Head', idleTimes, [
-      [0, 0, 0],
-      [-0.03, 0.06, 0.01],
-      [0, 0, 0],
+      [0.008, 0.018, 0.003],
+      [-0.012, -0.012, -0.002],
+      [0.005, 0.025, 0.004],
+      [-0.008, -0.018, -0.003],
+      [0.008, 0.018, 0.003],
     ]),
+    // Left arm: relaxed hanging, slight swing
     qTrack('LeftUpperArm', idleTimes, [
-      [0.04, 0, 0.12],
-      [-0.02, 0, 0.15],
-      [0.04, 0, 0.12],
+      [0.08, 0.015, 0.18],
+      [0.06, 0.020, 0.20],
+      [0.07, 0.012, 0.19],
+      [0.09, 0.010, 0.17],
+      [0.08, 0.015, 0.18],
     ]),
     qTrack('LeftForeArm', idleTimes, [
-      [-0.25, 0, 0],
-      [-0.3, 0, 0],
-      [-0.25, 0, 0],
+      [-0.18, 0, 0],
+      [-0.22, 0, 0],
+      [-0.20, 0, 0],
+      [-0.16, 0, 0],
+      [-0.18, 0, 0],
     ]),
+    // Right arm: holding agarbatti — naturally bent
     qTrack('RightUpperArm', idleTimes, [
-      [-0.18, 0, -0.14],
-      [-0.24, 0, -0.16],
-      [-0.18, 0, -0.14],
+      [-0.12, -0.02, -0.22],
+      [-0.15, -0.025, -0.24],
+      [-0.13, -0.018, -0.21],
+      [-0.11, -0.015, -0.23],
+      [-0.12, -0.02, -0.22],
     ]),
     qTrack('RightForeArm', idleTimes, [
-      [-0.55, 0, 0],
-      [-0.62, 0, 0],
-      [-0.55, 0, 0],
+      [-0.38, 0, 0],
+      [-0.42, 0, 0],
+      [-0.40, 0, 0],
+      [-0.36, 0, 0],
+      [-0.38, 0, 0],
     ]),
+    // Legs: subtle weight shift
     qTrack('LeftThigh', idleTimes, [
-      [0, 0, -0.03],
-      [0.02, 0, -0.03],
-      [0, 0, -0.03],
+      [0.005, 0, -0.025],
+      [0.012, 0, -0.028],
+      [0.008, 0, -0.022],
+      [0.003, 0, -0.030],
+      [0.005, 0, -0.025],
     ]),
     qTrack('RightThigh', idleTimes, [
-      [0, 0, 0.03],
-      [0.02, 0, 0.03],
-      [0, 0, 0.03],
+      [0.005, 0, 0.025],
+      [0.003, 0, 0.030],
+      [0.008, 0, 0.022],
+      [0.012, 0, 0.028],
+      [0.005, 0, 0.025],
     ]),
     qTrack('LeftShin', idleTimes, [
-      [0.04, 0, 0],
-      [0.08, 0, 0],
-      [0.04, 0, 0],
+      [0.028, 0, 0],
+      [0.035, 0, 0],
+      [0.030, 0, 0],
+      [0.025, 0, 0],
+      [0.028, 0, 0],
     ]),
     qTrack('RightShin', idleTimes, [
-      [0.04, 0, 0],
-      [0.08, 0, 0],
-      [0.04, 0, 0],
+      [0.028, 0, 0],
+      [0.025, 0, 0],
+      [0.030, 0, 0],
+      [0.035, 0, 0],
+      [0.028, 0, 0],
     ]),
   ]);
 
@@ -525,6 +557,9 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
   groundY,
   movementBounds,
   inputRef,
+  autoMoveTarget = null,
+  autoMoveMode = null,
+  onAutoMoveComplete,
   forcedState,
   igniteTargetPosition,
   onPositionChange,
@@ -540,13 +575,21 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
   const posRef = useRef<THREE.Vector3>(
     new THREE.Vector3(spawnPosition[0], groundY, spawnPosition[2])
   );
+  // World-space velocity is smoothed every frame to avoid abrupt starts/stops.
+  const velocityRef = useRef<THREE.Vector3>(new THREE.Vector3());
+  const desiredVelocityRef = useRef<THREE.Vector3>(new THREE.Vector3());
   const rotYRef = useRef<number>(0);
   const currentStateRef = useRef<CharacterAnimationState>('Idle');
   const lastReportedTimeRef = useRef<number>(0);
+  const completedAutoTargetRef = useRef<string | null>(null);
 
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionsMapRef = useRef<Partial<Record<CharacterAnimationState, THREE.AnimationAction>>>({});
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+
+  const lastCelebrateTriggerRef = useRef<number>(0);
+  const celebrateActiveRef = useRef<boolean>(false);   // true while celebrate plays
+  const celebrateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [usingCustomGlb, setUsingCustomGlb] = useState(false);
 
@@ -557,6 +600,8 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
   // Reset spawn position when environment changes
   useEffect(() => {
     posRef.current.set(spawnPosition[0], groundY, spawnPosition[2]);
+    velocityRef.current.set(0, 0, 0);
+    desiredVelocityRef.current.set(0, 0, 0);
     if (rootGroupRef.current) {
       rootGroupRef.current.position.copy(posRef.current);
     }
@@ -618,33 +663,32 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
 
         gltf.animations.forEach((clip) => {
           clipNames.push(clip.name);
-          const lower = clip.name.toLowerCase();
-          if (lower.includes('idle') || lower.includes('stand')) {
-            newActions.Idle = mixer.clipAction(clip);
-          } else if (lower.includes('walk')) {
-            newActions.Walk = mixer.clipAction(clip);
-          } else if (lower.includes('run') || lower.includes('sprint')) {
-            newActions.Run = mixer.clipAction(clip);
-          } else if (lower.includes('turn')) {
-            newActions.Turn = mixer.clipAction(clip);
-          } else if (lower.includes('crouch') || lower.includes('squat')) {
-            newActions.Crouch = mixer.clipAction(clip);
-          } else if (lower.includes('ignite') || lower.includes('interact') || lower.includes('use')) {
-            newActions.Ignite = mixer.clipAction(clip);
-          } else if (lower.includes('celeb') || lower.includes('wave') || lower.includes('dance')) {
-            newActions.Celebrate = mixer.clipAction(clip);
+          const lower = clip.name.toLowerCase().replace(/[\s_-]/g, '');
+          let state: CharacterAnimationState | null = null;
+
+          // Never treat the first arbitrary clip (especially Run) as Idle.
+          if (lower.includes('idle') || lower.includes('standing') || lower === 'stand') state = 'Idle';
+          else if (lower.includes('walk')) state = 'Walk';
+          else if (lower.includes('run') || lower.includes('sprint')) state = 'Run';
+          else if (lower.includes('turn')) state = 'Turn';
+          else if (lower.includes('crouch') || lower.includes('squat') || lower.includes('bend')) state = 'Crouch';
+          else if (lower.includes('ignite') || lower.includes('interact') || lower.includes('reach') || lower.includes('use')) state = 'Ignite';
+          else if (lower.includes('celeb') || lower.includes('wave') || lower.includes('dance') || lower.includes('clap')) state = 'Celebrate';
+
+          if (state && !newActions[state]) {
+            const action = mixer.clipAction(clip);
+            const oneShot = state === 'Ignite' || state === 'Turn';
+            action.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
+            action.clampWhenFinished = oneShot;
+            newActions[state] = action;
           }
         });
 
-        // Graceful fallback if some clips are missing in the custom GLB
-        const defaultAction = gltf.animations[0] ? mixer.clipAction(gltf.animations[0]) : undefined;
-        if (!newActions.Idle && defaultAction) newActions.Idle = defaultAction;
-        if (!newActions.Walk && newActions.Idle) newActions.Walk = newActions.Idle;
-        if (!newActions.Run && newActions.Walk) newActions.Run = newActions.Walk;
-
+        // Missing clips remain genuinely unavailable. Do not substitute Run for Idle.
         actionsMapRef.current = newActions;
+        activeActionRef.current = null;
         if (newActions.Idle) {
-          newActions.Idle.play();
+          newActions.Idle.reset().fadeIn(0.2).play();
           activeActionRef.current = newActions.Idle;
         }
 
@@ -670,6 +714,10 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
 
     return () => {
       cancelled = true;
+      mixerRef.current?.stopAllAction();
+      mixerRef.current = null;
+      activeActionRef.current = null;
+      actionsMapRef.current = {};
     };
   }, [customGlbUrl]);
 
@@ -699,24 +747,35 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
 
   // Helper to smoothly cross-fade animation states
   const transitionToAnimation = (nextState: CharacterAnimationState) => {
-    if (currentStateRef.current === nextState) return;
-    currentStateRef.current = nextState;
-
-    const nextAction =
-      actionsMapRef.current[nextState] || actionsMapRef.current.Idle || null;
-    if (!nextAction) return;
-
-    const prevAction = activeActionRef.current;
-    if (prevAction && prevAction !== nextAction) {
-      nextAction.reset();
-      nextAction.enabled = true;
-      nextAction.setEffectiveTimeScale(1);
-      nextAction.setEffectiveWeight(1);
-      nextAction.crossFadeFrom(prevAction, 0.2, false);
-      nextAction.play();
-    } else {
-      nextAction.reset().fadeIn(0.18).play();
+    const requestedAction = actionsMapRef.current[nextState];
+    // If a custom GLB lacks this clip, use a real Idle clip if available;
+    // otherwise leave its current pose untouched instead of playing the wrong clip.
+    const nextAction = requestedAction || (nextState !== 'Idle' ? actionsMapRef.current.Idle : null) || null;
+    if (!nextAction) {
+      if (currentStateRef.current !== nextState && nextState === 'Idle' && activeActionRef.current) {
+        activeActionRef.current.fadeOut(0.2);
+        activeActionRef.current = null;
+      }
+      currentStateRef.current = nextState;
+      return;
     }
+    if (activeActionRef.current === nextAction) {
+      currentStateRef.current = nextState;
+      return;
+    }
+
+    currentStateRef.current = nextState;
+    const prevAction = activeActionRef.current;
+    nextAction.reset();
+    nextAction.enabled = true;
+    nextAction.setEffectiveTimeScale(1);
+    nextAction.setEffectiveWeight(1);
+    if (prevAction && prevAction !== nextAction) {
+      nextAction.crossFadeFrom(prevAction, 0.24, false);
+    } else {
+      nextAction.fadeIn(0.24);
+    }
+    nextAction.play();
     activeActionRef.current = nextAction;
   };
 
@@ -734,66 +793,144 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
     }
 
     const input = inputRef.current;
-    let moveX = input.joyX;
-    let moveZ = input.joyY;
+    const isRetreating = autoMoveMode === 'retreat';
+    let moveX = 0;
+    let moveZ = 0;
 
-    if (input.left) moveX -= 1;
-    if (input.right) moveX += 1;
-    if (input.forward) moveZ -= 1;
-    if (input.backward) moveZ += 1;
+    // Normal manual movement allowed only when not in mandatory retreat or ignition
+    if (!isRetreating && forcedState !== 'Ignite') {
+      moveX = input.joyX;
+      moveZ = input.joyY;
 
-    const moveLen = Math.hypot(moveX, moveZ);
-    const isMoving = moveLen > 0.08 && forcedState !== 'Ignite';
+      if (input.left) moveX -= 1;
+      if (input.right) moveX += 1;
+      if (input.forward) moveZ -= 1;
+      if (input.backward) moveZ -= 1;
+    }
+    const walkSpeed = 2.05;
+    const runSpeed = 3.55;
+    if (!autoMoveTarget) completedAutoTargetRef.current = null;
+    const autoKey = autoMoveTarget ? `${autoMoveMode}:${autoMoveTarget[0].toFixed(2)}:${autoMoveTarget[2].toFixed(2)}` : null;
+    if (autoKey !== completedAutoTargetRef.current && autoMoveTarget) {
+      const dx = autoMoveTarget[0] - posRef.current.x;
+      const dz = autoMoveTarget[2] - posRef.current.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance <= 0.16) {
+        velocityRef.current.set(0, 0, 0);
+        completedAutoTargetRef.current = autoKey;
+        onAutoMoveComplete?.();
+      } else {
+        moveX = dx / distance;
+        moveZ = dz / distance;
+      }
+    }
+    const inputLength = Math.hypot(moveX, moveZ);
+    const autoMoving = Boolean(autoMoveTarget && autoKey !== completedAutoTargetRef.current);
+    const hasMoveInput = (inputLength > 0.08 || autoMoving) && forcedState !== 'Ignite';
+    const maxSpeed = autoMoving ? (autoMoveMode === 'retreat' ? runSpeed : walkSpeed) : (input.run ? runSpeed : walkSpeed);
+    const acceleration = 10.0;
+    const deceleration = 13.0;
+
+    desiredVelocityRef.current.set(0, 0, 0);
+    if (hasMoveInput) {
+      const normalizedX = moveX / inputLength;
+      const normalizedZ = moveZ / inputLength;
+      desiredVelocityRef.current.set(normalizedX * maxSpeed, 0, normalizedZ * maxSpeed);
+    }
+
+    // Exponential damping gives consistent, frame-rate-independent acceleration.
+    const smoothing = 1 - Math.exp(-(hasMoveInput ? acceleration : deceleration) * dt);
+    velocityRef.current.lerp(desiredVelocityRef.current, smoothing);
+
+    const currentSpeed = Math.hypot(velocityRef.current.x, velocityRef.current.z);
+    const isMoving = currentSpeed > 0.12;
+
+    // ── Celebrate one-shot trigger detection (keyboard G) ──────────────────
+    // Each G keypress increments celebrateTrigger; we track the last-handled
+    // value so we only fire once per press, regardless of how long G is held.
+    const newCelebrateTrigger = input.celebrateTrigger > lastCelebrateTriggerRef.current;
+    const touchCelebrate = input.celebrate && !celebrateActiveRef.current;
+    const shouldStartCelebrate = (newCelebrateTrigger || touchCelebrate)
+      && forcedState !== 'Ignite'
+      && !celebrateActiveRef.current;
+
+    if (shouldStartCelebrate) {
+      lastCelebrateTriggerRef.current = input.celebrateTrigger;
+      celebrateActiveRef.current = true;
+      // Clear any pending timer
+      if (celebrateTimerRef.current) clearTimeout(celebrateTimerRef.current);
+      // Auto-exit celebrate after clip duration (1.1s * 2 = 2.2s play, then back to Idle)
+      celebrateTimerRef.current = setTimeout(() => {
+        celebrateActiveRef.current = false;
+        // If touch-held celebrate button is still down, let it retrigger naturally
+      }, 2200);
+    }
+
+    const isCelebrating = forcedState === 'Celebrate' || celebrateActiveRef.current;
 
     if (forcedState === 'Ignite') {
-      // Face toward the cracker being ignited
+      velocityRef.current.set(0, 0, 0);
       if (igniteTargetPosition) {
         const dx = igniteTargetPosition[0] - posRef.current.x;
         const dz = igniteTargetPosition[2] - posRef.current.z;
         if (Math.hypot(dx, dz) > 0.02) {
           const targetAngle = Math.atan2(dx, dz);
-          let diff = targetAngle - rotYRef.current;
-          while (diff > Math.PI) diff -= Math.PI * 2;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          rotYRef.current += diff * Math.min(1, dt * 12);
+          const angleDiff = THREE.MathUtils.euclideanModulo(targetAngle - rotYRef.current + Math.PI, Math.PI * 2) - Math.PI;
+          rotYRef.current += angleDiff * (1 - Math.exp(-12 * dt));
         }
       }
       transitionToAnimation('Ignite');
-    } else if (forcedState === 'Celebrate' || input.celebrate) {
-      transitionToAnimation('Celebrate');
-    } else if (input.crouch && !isMoving) {
-      transitionToAnimation('Crouch');
-    } else if (isMoving) {
-      const nx = moveX / moveLen;
-      const nz = moveZ / moveLen;
-      const speed = input.run ? 3.55 : 2.05;
-
-      posRef.current.x = THREE.MathUtils.clamp(
-        posRef.current.x + nx * speed * dt,
-        movementBounds.minX,
-        movementBounds.maxX
-      );
-      posRef.current.z = THREE.MathUtils.clamp(
-        posRef.current.z + nz * speed * dt,
-        movementBounds.minZ,
-        movementBounds.maxZ
-      );
-      posRef.current.y = groundY;
-
-      const targetAngle = Math.atan2(nx, nz);
-      let angleDiff = targetAngle - rotYRef.current;
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      rotYRef.current += angleDiff * Math.min(1, dt * 11);
-
-      if (Math.abs(angleDiff) > 1.35 && speed < 2.5) {
-        transitionToAnimation('Turn');
-      } else {
-        transitionToAnimation(input.run ? 'Run' : 'Walk');
+    } else if (isCelebrating && !hasMoveInput) {
+      // Celebrate: character stays in place and faces cracker show
+      velocityRef.current.lerp(new THREE.Vector3(0, 0, 0), 1 - Math.exp(deceleration * dt));
+      if (igniteTargetPosition) {
+        const dx = igniteTargetPosition[0] - posRef.current.x;
+        const dz = igniteTargetPosition[2] - posRef.current.z;
+        if (Math.hypot(dx, dz) > 0.02) {
+          const targetAngle = Math.atan2(dx, dz);
+          const angleDiff = THREE.MathUtils.euclideanModulo(targetAngle - rotYRef.current + Math.PI, Math.PI * 2) - Math.PI;
+          rotYRef.current += angleDiff * (1 - Math.exp(-10 * dt));
+        }
       }
+      transitionToAnimation('Celebrate');
+    } else if (input.crouch && !isMoving && !isRetreating) {
+      velocityRef.current.set(0, 0, 0);
+      transitionToAnimation('Crouch');
     } else {
-      transitionToAnimation('Idle');
+      if (isMoving) {
+        posRef.current.x += velocityRef.current.x * dt;
+        posRef.current.z += velocityRef.current.z * dt;
+        posRef.current.x = THREE.MathUtils.clamp(posRef.current.x, movementBounds.minX, movementBounds.maxX);
+        posRef.current.z = THREE.MathUtils.clamp(posRef.current.z, movementBounds.minZ, movementBounds.maxZ);
+        posRef.current.y = groundY;
+
+        const targetAngle = Math.atan2(velocityRef.current.x, velocityRef.current.z);
+        const angleDiff = THREE.MathUtils.euclideanModulo(targetAngle - rotYRef.current + Math.PI, Math.PI * 2) - Math.PI;
+        rotYRef.current += angleDiff * (1 - Math.exp(-11 * dt));
+
+        // Run activates immediately when Shift is held + there is movement input.
+        // No speed-ratio gate — that caused the delayed/broken run feel.
+        const useRun = (autoMoving && autoMoveMode === 'retreat') || (input.run && hasMoveInput);
+        transitionToAnimation(useRun ? 'Run' : 'Walk');
+        if (activeActionRef.current) {
+          // Scale playback speed to match actual travel speed for foot synchronisation.
+          const baseSpeed = useRun ? runSpeed : walkSpeed;
+          activeActionRef.current.setEffectiveTimeScale(THREE.MathUtils.clamp(currentSpeed / baseSpeed, 0.6, 1.3));
+        }
+      } else {
+        // Finish deceleration before returning to Idle to avoid visible foot sliding.
+        if (currentSpeed < 0.12) {
+          velocityRef.current.set(0, 0, 0);
+          transitionToAnimation('Idle');
+        } else {
+          transitionToAnimation(input.run && hasMoveInput ? 'Run' : 'Walk');
+        }
+      }
     }
+
+    // Prevent accumulated velocity from pushing against a movement boundary.
+    if (posRef.current.x <= movementBounds.minX || posRef.current.x >= movementBounds.maxX) velocityRef.current.x = 0;
+    if (posRef.current.z <= movementBounds.minZ || posRef.current.z >= movementBounds.maxZ) velocityRef.current.z = 0;
 
     if (rootGroupRef.current) {
       rootGroupRef.current.position.copy(posRef.current);

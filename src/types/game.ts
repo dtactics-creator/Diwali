@@ -26,6 +26,17 @@ export type CrackerLifecycleState =
   | 'Active'
   | 'Completed';
 
+export type CrackerInteractionState =
+  | 'idle'
+  | 'approaching'
+  | 'reaching_fuse'
+  | 'igniting'
+  | 'retreating'
+  | 'safe'
+  | 'exploding'
+  | 'celebrating'
+  | 'completed';
+
 export type CharacterAnimationState =
   | 'Idle'
   | 'Walk'

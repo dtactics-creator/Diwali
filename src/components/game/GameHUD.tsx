@@ -35,6 +35,7 @@ import {
 import {
   CharacterAnimationState,
   CrackerId,
+  CrackerInteractionState,
   EnvironmentId,
   GraphicsQualityId,
   PlacedCrackerInstance,
@@ -50,6 +51,7 @@ interface GameHUDProps {
   selectedCrackerForPlacement: CrackerId | null;
   placedCrackers: PlacedCrackerInstance[];
   nearestInteractableCracker: PlacedCrackerInstance | null;
+  interactionState: CrackerInteractionState;
   isValidHover: boolean;
   hasHoverPoint: boolean;
   characterAnimState: CharacterAnimationState;
@@ -59,7 +61,6 @@ interface GameHUDProps {
   inputRef: React.MutableRefObject<CharacterInputState>;
   onSelectCrackerForPlacement: (id: CrackerId | null) => void;
   onIgniteCracker: (instanceId: string) => void;
-  onIgniteAllPlaced: () => void;
   onUpdateSettings: (partial: Partial<SimulationSettings>) => void;
   onTogglePause: () => void;
   onRestartScene: () => void;
@@ -75,6 +76,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   selectedCrackerForPlacement,
   placedCrackers,
   nearestInteractableCracker,
+  interactionState,
   isValidHover,
   hasHoverPoint,
   characterAnimState,
@@ -84,7 +86,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   inputRef,
   onSelectCrackerForPlacement,
   onIgniteCracker,
-  onIgniteAllPlaced,
   onUpdateSettings,
   onTogglePause,
   onRestartScene,
@@ -425,12 +426,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   <XCircle className="w-3.5 h-3.5" /> Cancel
                 </button>
               </div>
+            ) : interactionState === 'approaching' ? (
+              <div className="px-4 py-1.5 rounded-full bg-amber-500/90 text-slate-950 font-bold text-xs flex items-center gap-2.5 shadow-lg animate-pulse">
+                <Flame className="w-4 h-4 fill-current text-slate-950" />
+                <span>Approaching cracker fuse...</span>
+              </div>
+            ) : interactionState === 'reaching_fuse' || interactionState === 'igniting' ? (
+              <div className="px-4 py-1.5 rounded-full bg-orange-600 text-white font-bold text-xs flex items-center gap-2.5 shadow-lg animate-pulse">
+                <Flame className="w-4 h-4 fill-current text-amber-300" />
+                <span>Lighting fuse with incense stick...</span>
+              </div>
+            ) : interactionState === 'retreating' ? (
+              <div className="px-4 py-1.5 rounded-full bg-rose-600 text-white font-extrabold text-xs flex items-center gap-2.5 shadow-lg shadow-rose-600/40 animate-bounce">
+                <Flame className="w-4 h-4 fill-current text-amber-300" />
+                <span>Fuse Lit! Automatically retreating to safety...</span>
+              </div>
+            ) : interactionState === 'safe' ? (
+              <div className="px-4 py-1.5 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center gap-2.5 shadow-lg">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Safe distance reached! Awaiting fireworks blast...</span>
+              </div>
+            ) : interactionState === 'celebrating' || interactionState === 'exploding' ? (
+              <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-slate-950 font-extrabold text-xs flex items-center gap-2.5 shadow-xl shadow-amber-500/40">
+                <Sparkles className="w-4 h-4 fill-current animate-spin" />
+                <span>Happy Diwali! Fireworks in progress — Celebrating!</span>
+              </div>
             ) : nearestInteractableCracker ? (
               <div className="px-4 py-1.5 rounded-full bg-amber-500/95 text-slate-950 font-extrabold text-xs flex items-center gap-3 shadow-xl shadow-amber-500/30 animate-bounce">
                 <Flame className="w-4 h-4 fill-current" />
                 <span>
-                  Ready to Light:{' '}
-                  {CRACKERS[nearestInteractableCracker.crackerId].name}
+                  Near Fuse: {CRACKERS[nearestInteractableCracker.crackerId].name}
                 </span>
                 <button
                   onClick={() =>
@@ -438,7 +463,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                   }
                   className="px-3 py-0.5 rounded-full bg-slate-950 text-amber-300 hover:bg-slate-900 font-bold text-xs cursor-pointer"
                 >
-                  Press [E] or Click to Ignite!
+                  Press [E] or Click to Approach & Light!
                 </button>
               </div>
             ) : placedReadyCrackers.length > 0 ? (
@@ -447,20 +472,14 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <span>
                   {placedReadyCrackers.length} cracker
                   {placedReadyCrackers.length > 1 ? 's' : ''} placed on ground —
-                  Walk close & press <strong>[E]</strong> or:
+                  Walk close to any cracker and press <strong>[E]</strong> to light safely!
                 </span>
-                <button
-                  onClick={onIgniteAllPlaced}
-                  className="px-3 py-0.5 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs cursor-pointer"
-                >
-                  Ignite Now ({placedReadyCrackers.length})
-                </button>
               </div>
             ) : activeShowCrackers.length > 0 ? (
               <div className="px-4 py-1.5 rounded-full bg-indigo-950/85 backdrop-blur-md border border-amber-400/40 text-xs text-amber-200 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
                 <span>
-                  Fireworks Active! Hold <strong>[G]</strong> or click Celebrate to cheer!
+                  Fireworks Active! Automatic celebration in progress!
                 </span>
               </div>
             ) : (
@@ -509,11 +528,11 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             </div>
             <div>
               <strong className="text-white block">Press E / Ignite Btn</strong>
-              <span className="text-slate-400">Light nearby cracker</span>
+              <span className="text-slate-400">Approach, light & retreat safely</span>
             </div>
             <div>
               <strong className="text-white block">Hold C / Hold G</strong>
-              <span className="text-slate-400">Crouch / Celebrate</span>
+              <span className="text-slate-400">Crouch / Auto-Celebrates</span>
             </div>
           </div>
         </div>
@@ -638,41 +657,25 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <div />
           </div>
 
-          {/* Right-side Action Buttons (Ignite, Celebrate, Crouch) */}
+          {/* Right-side Action Buttons */}
           <div className="pointer-events-auto flex flex-col sm:flex-row items-end sm:items-center gap-2">
-            <button
-              type="button"
-              onPointerDown={() => {
-                inputRef.current.celebrate = true;
-              }}
-              onPointerUp={() => {
-                inputRef.current.celebrate = false;
-              }}
-              onPointerLeave={() => {
-                inputRef.current.celebrate = false;
-              }}
-              className="px-3.5 py-2.5 rounded-xl bg-slate-950/75 hover:bg-white/15 active:bg-amber-400 active:text-slate-950 backdrop-blur-md border border-white/15 text-xs font-bold text-amber-200 flex items-center gap-1.5 shadow-lg cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-amber-400" /> Celebrate [G]
-            </button>
+            {(interactionState === 'celebrating' || interactionState === 'exploding') && (
+              <div className="px-4 py-2.5 rounded-xl bg-amber-500/20 border border-amber-400/40 backdrop-blur-md text-xs font-extrabold text-amber-300 flex items-center gap-2 shadow-lg animate-pulse">
+                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" /> Celebrating Diwali!
+              </div>
+            )}
 
-            {(nearestInteractableCracker || placedReadyCrackers.length > 0) && (
+            {interactionState === 'idle' && nearestInteractableCracker && (
               <button
                 type="button"
-                onClick={() => {
-                  if (nearestInteractableCracker) {
-                    onIgniteCracker(nearestInteractableCracker.instanceId);
-                  } else {
-                    onIgniteAllPlaced();
-                  }
-                }}
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-amber-500/30 cursor-pointer"
+                onClick={() =>
+                  onIgniteCracker(nearestInteractableCracker.instanceId)
+                }
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-amber-500/30 cursor-pointer animate-pulse"
               >
                 <Flame className="w-5 h-5 fill-current" />
                 <span>
-                  {nearestInteractableCracker
-                    ? `Ignite ${CRACKERS[nearestInteractableCracker.crackerId].name} [E]`
-                    : `Ignite Placed (${placedReadyCrackers.length}) [E]`}
+                  Light {CRACKERS[nearestInteractableCracker.crackerId].name} [E]
                 </span>
               </button>
             )}

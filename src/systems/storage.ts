@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS: SimulationSettings = {
   graphicsQuality: 'HIGH',
   soundEnabled: true,
   soundVolume: 0.75,
+  effectsVolume: 0.9,
+  ambientVolume: 0.85,
   reducedFlash: false,
 };
 
@@ -28,6 +30,13 @@ export const DEFAULT_STATISTICS: PlayerStatistics = {
     rocket: 0,
     'aerial-fireworks': 0,
     'garland-cracker': 0,
+    lakshmi: 0,
+    kuruvi: 0,
+    'paper-bomb': 0,
+    'single-shot': 0,
+    'small-ground': 0,
+    'large-ground': 0,
+    bijili: 0,
   },
   recentCrackers: [],
   favoriteCracker: null,

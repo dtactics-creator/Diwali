@@ -456,7 +456,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-slate-400">Volume</span>
+                  <span className="text-[11px] text-slate-400 w-16">Master</span>
                   <input
                     type="range"
                     min={0}
@@ -473,6 +473,42 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({
                   />
                   <span className="text-xs font-mono text-amber-300 w-9 text-right">
                     {Math.round(settings.soundVolume * 100)}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-slate-400 w-16">Effects</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={settings.effectsVolume}
+                    onChange={(e) =>
+                      onUpdateSettings({ effectsVolume: parseFloat(e.target.value) })
+                    }
+                    className="flex-1 accent-amber-400"
+                  />
+                  <span className="text-xs font-mono text-amber-300 w-9 text-right">
+                    {Math.round(settings.effectsVolume * 100)}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-slate-400 w-16">Ambient</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={settings.ambientVolume}
+                    onChange={(e) =>
+                      onUpdateSettings({ ambientVolume: parseFloat(e.target.value) })
+                    }
+                    className="flex-1 accent-amber-400"
+                  />
+                  <span className="text-xs font-mono text-amber-300 w-9 text-right">
+                    {Math.round(settings.ambientVolume * 100)}%
                   </span>
                 </div>
               </div>

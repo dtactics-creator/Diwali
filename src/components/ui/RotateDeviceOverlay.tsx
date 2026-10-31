@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Maximize2, RotateCw, Sparkles } from 'lucide-react';
+import { requestLandscape } from '../../systems/orientation';
 
-export const RotateDeviceOverlay: React.FC = () => {
+interface RotateDeviceOverlayProps {
+  active?: boolean;
+}
+
+export const RotateDeviceOverlay: React.FC<RotateDeviceOverlayProps> = ({
+  active = false,
+}) => {
   const [isPortrait, setIsPortrait] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.innerHeight > window.innerWidth;
@@ -23,18 +30,10 @@ export const RotateDeviceOverlay: React.FC = () => {
         window.matchMedia('(pointer: coarse)').matches ||
           Math.max(window.innerWidth, window.innerHeight) <= 1024
       );
-
-      // If switched to landscape, attempt silent orientation lock
-      if (!portrait) {
-        tryLockLandscape();
-      }
     };
 
     window.addEventListener('resize', handleOrientationCheck);
     window.addEventListener('orientationchange', handleOrientationCheck);
-
-    // Initial attempt on mount
-    tryLockLandscape();
 
     return () => {
       window.removeEventListener('resize', handleOrientationCheck);
@@ -42,37 +41,8 @@ export const RotateDeviceOverlay: React.FC = () => {
     };
   }, []);
 
-  const tryLockLandscape = async () => {
-    try {
-      const orientationApi = screen.orientation as any;
-      if (orientationApi && typeof orientationApi.lock === 'function') {
-        await orientationApi.lock('landscape');
-      } else if ((screen as any).lockOrientation) {
-        (screen as any).lockOrientation('landscape');
-      } else if ((screen as any).mozLockOrientation) {
-        (screen as any).mozLockOrientation('landscape');
-      } else if ((screen as any).msLockOrientation) {
-        (screen as any).msLockOrientation('landscape');
-      }
-    } catch {
-      // Browser doesn't support programmatic locking without user-gesture/fullscreen,
-      // which is why the visual rotation overlay fallback is displayed.
-    }
-  };
-
-  const handleRequestFullscreenAndLandscape = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      }
-      await tryLockLandscape();
-    } catch {
-      // Fallback: user physically rotates phone
-    }
-  };
-
-  // Only display overlay if currently in portrait orientation on a touch/mobile device
-  if (!isPortrait || !isTouchDevice) {
+  // Only display overlay during gameplay, in portrait, on a touch/mobile device
+  if (!active || !isPortrait || !isTouchDevice) {
     return null;
   }
 
@@ -166,7 +136,7 @@ export const RotateDeviceOverlay: React.FC = () => {
         <div className="w-full space-y-2">
           <button
             type="button"
-            onClick={handleRequestFullscreenAndLandscape}
+            onClick={() => void requestLandscape()}
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-300 hover:to-orange-400 active:scale-95 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 transition-all cursor-pointer"
           >
             <Maximize2 className="w-4 h-4" />

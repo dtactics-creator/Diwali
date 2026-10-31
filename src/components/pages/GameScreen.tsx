@@ -179,7 +179,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   // Sync Audio System with settings and Rain ambience
   useEffect(() => {
-    audioSystem.setSettings(settings.soundEnabled, settings.soundVolume);
+    audioSystem.setVolumes(
+      settings.soundEnabled,
+      settings.soundVolume,
+      settings.effectsVolume,
+      settings.ambientVolume
+    );
     const isRaining =
       settings.weatherEffectsEnabled &&
       settings.weather === 'rain' &&
@@ -191,6 +196,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   }, [
     settings.soundEnabled,
     settings.soundVolume,
+    settings.effectsVolume,
+    settings.ambientVolume,
     settings.weather,
     settings.weatherEffectsEnabled,
     isPaused,
@@ -272,7 +279,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         );
 
         const cfg = CRACKERS[target.crackerId];
-        audioSystem.playFuseIgnite(cfg.ignitionDuration);
+        // Per-cracker fuse character, attenuated by the character's distance to the cracker
+        const fuseDist = Math.hypot(
+          characterPosRef.current[0] - target.position[0],
+          characterPosRef.current[2] - target.position[2]
+        );
+        audioSystem.playFuse(cfg.audio.fuse, cfg.ignitionDuration, fuseDist);
 
         // Maintain reaching-lighting posture for 700ms so fuse visibly catches fire with sparks
         if (lightTimerRef.current) clearTimeout(lightTimerRef.current);
@@ -465,14 +477,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             if (fuseDone && isPhysicallySafe) {
               changed = true;
 
-              // Play active audio & record statistics
-              if (
-                item.crackerId === 'phuljhadi' ||
-                item.crackerId === 'flower-pot'
-              ) {
-                audioSystem.playSparkleFountain(cfg.activeDuration);
-              } else if (item.crackerId === 'chakri') {
-                audioSystem.playChakriSpin(cfg.activeDuration);
+              // Play the cracker's own continuous active bed (if any), recorded per type
+              if (cfg.audio.activeBed !== 'none') {
+                const bedDist = Math.hypot(
+                  characterPosRef.current[0] - item.position[0],
+                  characterPosRef.current[2] - item.position[2]
+                );
+                audioSystem.playActiveBed(cfg.audio.activeBed, cfg.activeDuration, bedDist);
               }
               onCrackerIgnited(item.crackerId, settings.environment);
 
@@ -575,9 +586,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       // Crouch — hold
       if ((key === 'c' || e.code === 'KeyC') && !e.repeat) inputRef.current.crouch = true;
 
-      // Number keys 1-6 select crackers
-      if (!e.repeat && ['1', '2', '3', '4', '5', '6'].includes(key)) {
-        const idx = parseInt(key, 10) - 1;
+      // Number keys 1-9 and 0 select the first ten crackers in the collection
+      if (!e.repeat && /^[0-9]$/.test(key)) {
+        const idx = key === '0' ? 9 : parseInt(key, 10) - 1;
         if (CRACKER_LIST[idx]) {
           audioSystem.playUIClick();
           onSelectCrackerId(CRACKER_LIST[idx].id);
@@ -715,12 +726,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       {/* 2. Real-Time 3D WebGL Viewport */}
       <div className="absolute inset-0 z-10">
         <Canvas
-          shadows={graphics.enableShadows}
+          shadows={graphics.enableShadows ? 'soft' : false}
           dpr={graphics.dpr}
           gl={{
             alpha: true,
             antialias: settings.graphicsQuality !== 'LOW',
             powerPreference: 'high-performance',
+            stencil: false,
+          }}
+          onCreated={({ gl }) => {
+            // Physically-based tone mapping + correct output colour space so the
+            // PBR albedo / emissive maps composite the way they were authored.
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1.05;
+            gl.outputColorSpace = THREE.SRGBColorSpace;
+            gl.shadowMap.type = THREE.PCFSoftShadowMap;
           }}
           camera={{
             position: environment.camera.position,
@@ -759,6 +779,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             onAssetStatusChange={onCharacterAssetStatusChange}
             enableShadows={graphics.enableShadows}
             rocketTrackRef={rocketTrackRef}
+            textureSize={graphics.materialTextureSize}
+            anisotropy={graphics.textureAnisotropy}
           />
 
           <PlacedCrackersManager3D
@@ -771,6 +793,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             currentTimeMs={nowMs}
             onSelectPlacedCracker={handleIgniteCracker}
             rocketTrackRef={rocketTrackRef}
+            textureSize={graphics.materialTextureSize}
+            anisotropy={graphics.textureAnisotropy}
+            useEnvMap={graphics.enableEnvironmentMap}
           />
 
           <FireworksSystem3D

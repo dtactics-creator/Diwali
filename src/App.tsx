@@ -8,6 +8,7 @@ import { SetupScreen } from './components/pages/SetupScreen';
 import { SimulationErrorBoundary } from './components/ui/SimulationErrorBoundary';
 import { RotateDeviceOverlay } from './components/ui/RotateDeviceOverlay';
 import { audioSystem } from './systems/AudioSystem';
+import { releaseLandscape, requestLandscape } from './systems/orientation';
 import {
   DEFAULT_STATISTICS,
   loadPlayerStatistics,
@@ -62,7 +63,12 @@ export function App() {
       setSettings((prev) => {
         const next = { ...prev, ...partial };
         saveSettings(next);
-        audioSystem.setSettings(next.soundEnabled, next.soundVolume);
+        audioSystem.setVolumes(
+          next.soundEnabled,
+          next.soundVolume,
+          next.effectsVolume,
+          next.ambientVolume
+        );
         return next;
       });
     },
@@ -89,6 +95,7 @@ export function App() {
       setSelectedCrackerId(preselected);
     }
     setScreen('game');
+    void requestLandscape();
   }, []);
 
   const handleCharacterAssetStatusChange = useCallback(
@@ -132,9 +139,11 @@ export function App() {
           onStartSimulation={() => {
             audioSystem.playUIClick();
             setScreen('game');
+            void requestLandscape();
           }}
           onBackToLanding={() => {
             audioSystem.playUIClick();
+            releaseLandscape();
             setScreen('landing');
           }}
         />
@@ -150,8 +159,14 @@ export function App() {
           onOpenCollection={() => setIsCollectionOpen(true)}
           onOpenDashboard={() => setIsDashboardOpen(true)}
           onOpenAssetManifest={() => setIsAssetManifestOpen(true)}
-          onOpenSetupStudio={() => setScreen('setup')}
-          onBackToLanding={() => setScreen('landing')}
+          onOpenSetupStudio={() => {
+            releaseLandscape();
+            setScreen('setup');
+          }}
+          onBackToLanding={() => {
+            releaseLandscape();
+            setScreen('landing');
+          }}
           customCharacterGlbUrl={customCharacterGlbUrl}
           onCharacterAssetStatusChange={handleCharacterAssetStatusChange}
         />
@@ -166,6 +181,7 @@ export function App() {
           setSelectedCrackerId(id);
           if (screen !== 'game') {
             setScreen('game');
+            void requestLandscape();
           }
         }}
         onClose={() => setIsCollectionOpen(false)}
@@ -194,8 +210,8 @@ export function App() {
         onClose={() => setIsAssetManifestOpen(false)}
       />
 
-      {/* Mobile Landscape Orientation Lock & Fallback Overlay */}
-      <RotateDeviceOverlay />
+      {/* Mobile Landscape Orientation Fallback Overlay (gameplay only) */}
+      <RotateDeviceOverlay active={screen === 'game'} />
     </SimulationErrorBoundary>
   );
 }

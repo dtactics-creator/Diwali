@@ -3,63 +3,110 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CRACKERS } from '../../config/crackers';
 import { audioSystem } from '../../systems/AudioSystem';
-import { GraphicsConfig, PlacedCrackerInstance, RocketTrackData } from '../../types/game';
+import { CrackerConfig, GraphicsConfig, PlacedCrackerInstance, RocketTrackData } from '../../types/game';
 import { getCrackerWorldFusePosition } from './CrackerModels3D';
 
 // ─── Sprite Textures ──────────────────────────────────────────────────────────
 
+/**
+ * Applies the correct colour-space and filtering to a colour sprite so the
+ * additive / normal-blended particles decode and composite consistently on
+ * every device (colour data must be tagged sRGB, not linear).
+ */
+function finalizeSprite(tex: THREE.CanvasTexture): THREE.CanvasTexture {
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 function createSparkSpriteTexture(): THREE.CanvasTexture {
+  const size = 64;
   const canvas = document.createElement('canvas');
-  canvas.width = 64; canvas.height = 64;
+  canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d')!;
+  const c = size / 2;
   // Bright core with long radial falloff
-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c);
   g.addColorStop(0, 'rgba(255,255,255,1)');
   g.addColorStop(0.12, 'rgba(255,252,210,0.95)');
   g.addColorStop(0.35, 'rgba(255,210,90,0.52)');
   g.addColorStop(0.72, 'rgba(255,165,30,0.12)');
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
-  return new THREE.CanvasTexture(canvas);
+  ctx.fillRect(0, 0, size, size);
+  // Faint radial rays give sparks a defined, spiky silhouette that stays
+  // readable even against a bright daylight sky.
+  ctx.globalCompositeOperation = 'lighter';
+  const rays = 6;
+  for (let i = 0; i < rays; i++) {
+    const a = (i / rays) * Math.PI * 2 + 0.22;
+    const lg = ctx.createLinearGradient(c, c, c + Math.cos(a) * c, c + Math.sin(a) * c);
+    lg.addColorStop(0, 'rgba(255,246,200,0.5)');
+    lg.addColorStop(1, 'rgba(255,190,60,0)');
+    ctx.strokeStyle = lg;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(c, c);
+    ctx.lineTo(c + Math.cos(a) * c, c + Math.sin(a) * c);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  return finalizeSprite(new THREE.CanvasTexture(canvas));
 }
 
 function createEmberSpriteTexture(): THREE.CanvasTexture {
+  const size = 32;
   const canvas = document.createElement('canvas');
-  canvas.width = 32; canvas.height = 32;
+  canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 15);
-  g.addColorStop(0, 'rgba(255,200,80,1)');
-  g.addColorStop(0.5, 'rgba(255,100,20,0.5)');
+  const c = size / 2;
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+  g.addColorStop(0, 'rgba(255,225,150,1)');
+  g.addColorStop(0.32, 'rgba(255,150,50,0.72)');
+  g.addColorStop(0.68, 'rgba(230,70,15,0.28)');
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 32, 32);
-  return new THREE.CanvasTexture(canvas);
+  ctx.fillRect(0, 0, size, size);
+  return finalizeSprite(new THREE.CanvasTexture(canvas));
 }
 
 function createSmokeSpriteTexture(): THREE.CanvasTexture {
+  const size = 128;
   const canvas = document.createElement('canvas');
-  canvas.width = 128; canvas.height = 128;
+  canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d')!;
+  const c = size / 2;
   // Soft multi-layered smoke puff
-  const g = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+  const g = ctx.createRadialGradient(c, c, 2, c, c, c - 2);
   g.addColorStop(0, 'rgba(210, 215, 230, 0.55)');
   g.addColorStop(0.3, 'rgba(175, 180, 200, 0.35)');
   g.addColorStop(0.65, 'rgba(130, 135, 160, 0.14)');
   g.addColorStop(1, 'rgba(80, 85, 110, 0)');
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(64, 64, 62, 0, Math.PI * 2);
+  ctx.arc(c, c, c - 2, 0, Math.PI * 2);
   ctx.fill();
-  // Second offset puff for irregularity
-  const g2 = ctx.createRadialGradient(80, 52, 2, 80, 52, 32);
-  g2.addColorStop(0, 'rgba(220, 225, 240, 0.28)');
-  g2.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g2;
-  ctx.beginPath();
-  ctx.arc(80, 52, 32, 0, Math.PI * 2);
-  ctx.fill();
-  return new THREE.CanvasTexture(canvas);
+  // Irregular overlapping puffs for a natural, non-uniform silhouette
+  const puffs = [
+    { x: 80, y: 52, r: 32, a: 0.28 },
+    { x: 48, y: 78, r: 26, a: 0.22 },
+    { x: 92, y: 88, r: 22, a: 0.16 },
+  ];
+  for (const p of puffs) {
+    const pg = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, p.r);
+    pg.addColorStop(0, `rgba(220, 225, 240, ${p.a})`);
+    pg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return finalizeSprite(new THREE.CanvasTexture(canvas));
 }
 
 // ─── Shaders ──────────────────────────────────────────────────────────────────
@@ -85,7 +132,10 @@ const SPARK_FRAG = `
   void main() {
     vec4 tex = texture2D(uMap, gl_PointCoord);
     if (tex.a < 0.015 || vAlpha <= 0.01) discard;
-    gl_FragColor = vec4(vColor * tex.rgb, tex.a * vAlpha);
+    // Saturated core keeps sparks readable against bright daylight skies while
+    // the soft falloff still reads as a warm glow at night.
+    vec3 core = vColor * pow(tex.a, 6.0) * 0.35;
+    gl_FragColor = vec4(vColor * tex.rgb + core, tex.a * vAlpha);
   }
 `;
 
@@ -144,6 +194,41 @@ const PALETTES: Record<string, { primary: string[]; secondary: string[]; ember: 
     secondary: ['#fbbf24', '#f43f5e', '#fb923c'],
     ember: ['#ef4444', '#fb923c'],
   },
+  bijili: {
+    primary: ['#fef2f2', '#fca5a5', '#f87171', '#ffffff'],
+    secondary: ['#fbbf24', '#fde047', '#e7e5e4'],
+    ember: ['#ef4444', '#fca5a5'],
+  },
+  'small-ground': {
+    primary: ['#fef9c3', '#fde047', '#fb923c', '#ffffff'],
+    secondary: ['#f97316', '#fcd34d', '#e7e5e4'],
+    ember: ['#fb923c', '#fde047'],
+  },
+  'large-ground': {
+    primary: ['#fff7ed', '#fde047', '#fb923c', '#ffffff'],
+    secondary: ['#ea580c', '#fca5a5', '#fed7aa'],
+    ember: ['#ea580c', '#fb923c'],
+  },
+  'paper-bomb': {
+    primary: ['#fefce8', '#fde047', '#fb923c', '#ffffff'],
+    secondary: ['#fca5a5', '#e7e5e4', '#fbbf24'],
+    ember: ['#b45309', '#f59e0b'],
+  },
+  lakshmi: {
+    primary: ['#fffbeb', '#fde68a', '#fbbf24', '#ffffff', '#fef3c7'],
+    secondary: ['#4ade80', '#60a5fa', '#fca5a5'],
+    ember: ['#eab308', '#fbbf24', '#f59e0b'],
+  },
+  kuruvi: {
+    primary: ['#dcfce7', '#4ade80', '#22c55e', '#ffffff'],
+    secondary: ['#fde047', '#38bdf8'],
+    ember: ['#22c55e', '#86efac'],
+  },
+  'single-shot': {
+    primary: ['#fbbf24', '#38bdf8', '#f43f5e', '#ffffff'],
+    secondary: ['#c084fc', '#4ade80', '#fde047'],
+    ember: ['#38bdf8', '#fbbf24'],
+  },
 };
 
 // ─── Particle pool sizes ──────────────────────────────────────────────────────
@@ -151,6 +236,12 @@ const PALETTES: Record<string, { primary: string[]; secondary: string[]; ember: 
 const MAX_SPARK = 5600;
 const MAX_EMBER = 1200;
 const MAX_SMOKE = 800;
+/**
+ * Pool size for the paper-waste debris system. Sized for mobile: LOW quality
+ * scales the spawn count down (never the pool) so the InstancedMesh allocation
+ * stays fixed and there is no per-burst garbage.
+ */
+const MAX_DEBRIS = 320;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -189,6 +280,35 @@ interface Tracker {
   garlandPopsFired: number;
   chakriAngle: number;
   fuseFlashTimer: number;
+  /** One-shot ground/aerial crackers that detonate a single burst on entering Active. */
+  burstFired: boolean;
+  /** Launch/whistle sound + comet already emitted for aerial crackers. */
+  launchFired: boolean;
+  /** Paper waste already scattered (prevents repeated emission on one burst). */
+  paperFired: boolean;
+  /** Kuruvi hopping wander phase. */
+  hopPhase: number;
+}
+
+/**
+ * Paper-waste debris pool. Fragments are simulated in world space, settle onto
+ * the real ground plane (environment `groundY`) and then fade out, so waste
+ * never hovers. Rendered as a single InstancedMesh (one draw call on mobile).
+ */
+interface DebrisPool {
+  positions: Float32Array;
+  velocities: Float32Array;
+  rots: Float32Array;
+  angVels: Float32Array;
+  scales: Float32Array;
+  colors: Float32Array;
+  alphas: Float32Array;
+  ages: Float32Array;
+  settleAges: Float32Array;
+  groundLifetimes: Float32Array;
+  /** 0 = free, 1 = flying, 2 = settled on ground, 3 = fading out */
+  states: Uint8Array;
+  cursor: number;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -275,6 +395,70 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
   const ep = useMemo(() => makePool(MAX_EMBER), []);
   const smp = useMemo(() => makeSmokePool(MAX_SMOKE), []);
 
+  // ── Paper debris system (instanced, world-space, ground-settling) ─────────
+  const dp = useMemo<DebrisPool>(
+    () => ({
+      positions: new Float32Array(MAX_DEBRIS * 3),
+      velocities: new Float32Array(MAX_DEBRIS * 3),
+      rots: new Float32Array(MAX_DEBRIS * 3),
+      angVels: new Float32Array(MAX_DEBRIS * 3),
+      scales: new Float32Array(MAX_DEBRIS * 3),
+      colors: new Float32Array(MAX_DEBRIS * 3),
+      alphas: new Float32Array(MAX_DEBRIS),
+      ages: new Float32Array(MAX_DEBRIS),
+      settleAges: new Float32Array(MAX_DEBRIS),
+      groundLifetimes: new Float32Array(MAX_DEBRIS),
+      states: new Uint8Array(MAX_DEBRIS),
+      cursor: 0,
+    }),
+    []
+  );
+
+  const debrisMeshRef = useRef<THREE.InstancedMesh>(null);
+  const debrisDummy = useMemo(() => new THREE.Object3D(), []);
+  const debrisColor = useMemo(() => new THREE.Color(), []);
+
+  const debrisGeo = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(1, 1);
+    geo.setAttribute('aAlpha', new THREE.InstancedBufferAttribute(dp.alphas, 1));
+    return geo;
+  }, [dp]);
+
+  /**
+   * Paper fragments need per-instance alpha so settled waste can fade away
+   * instead of popping out. MeshStandardMaterial keeps the paper receiving the
+   * scene lighting; a tiny shader patch forwards the instanced alpha.
+   */
+  const debrisMat = useMemo(() => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.95,
+      metalness: 0.0,
+      side: THREE.DoubleSide,
+      transparent: true,
+    });
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nattribute float aAlpha;\nvarying float vDebrisAlpha;'
+        )
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvDebrisAlpha = aAlpha;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vDebrisAlpha;')
+        .replace(
+          '#include <dithering_fragment>',
+          '#include <dithering_fragment>\n  gl_FragColor.a *= vDebrisAlpha;'
+        );
+    };
+    return mat;
+  }, []);
+
+  useEffect(() => () => {
+    debrisGeo.dispose();
+    debrisMat.dispose();
+  }, [debrisGeo, debrisMat]);
+
   const trackers = useRef<Record<string, Tracker>>({});
 
   // ── Emitters ──────────────────────────────────────────────────────────────
@@ -294,9 +478,11 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
     pool.velocities[i3] = vx; pool.velocities[i3 + 1] = vy; pool.velocities[i3 + 2] = vz;
     tmpColor.set(color);
     const boost = reducedFlash ? 0.82 : contrastBoost;
-    pool.colors[i3] = Math.min(1, tmpColor.r * boost);
-    pool.colors[i3 + 1] = Math.min(1, tmpColor.g * boost);
-    pool.colors[i3 + 2] = Math.min(1, tmpColor.b * boost);
+    // Per-particle brightness variance for a natural, non-uniform sparkle.
+    const bright = (0.72 + Math.random() * 0.5) * boost;
+    pool.colors[i3] = Math.min(1, tmpColor.r * bright);
+    pool.colors[i3 + 1] = Math.min(1, tmpColor.g * bright);
+    pool.colors[i3 + 2] = Math.min(1, tmpColor.b * bright);
     const sz = reducedFlash ? size * 0.78 : size;
     pool.sizes[i] = sz; pool.baseSizes[i] = sz;
     pool.alphas[i] = 1; pool.ages[i] = 0;
@@ -375,11 +561,127 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
     }
   };
 
-  // ── Main frame loop ───────────────────────────────────────────────────────
+  /**
+   * Flat, low-altitude ground blast used by the paper-wrapped ground crackers
+   * (bijili, chota/bada zameen, paper bomb). Sparks fan outward and slightly up
+   * so the charge reads as a ground-level detonation, not an aerial shell.
+   */
+  const emitGroundBlast = (
+    cx: number, cy: number, cz: number,
+    cfg: CrackerConfig, pal: { primary: string[]; secondary: string[]; ember: string[] },
+    count: number, speed: number, upwardBias: number
+  ) => {
+    const n = Math.max(1, Math.floor(count * graphics.particleMultiplier));
+    for (let k = 0; k < n; k++) {
+      const ang = Math.random() * Math.PI * 2;
+      const elev = Math.random() * 0.5;
+      const spd = speed * (0.45 + Math.random() * 0.9);
+      const col = k % 3 === 0
+        ? pal.secondary[Math.floor(Math.random() * pal.secondary.length)]
+        : pal.primary[Math.floor(Math.random() * pal.primary.length)];
+      emitSpark(sp, MAX_SPARK,
+        cx + (Math.random() - 0.5) * 0.06, cy, cz + (Math.random() - 0.5) * 0.06,
+        Math.cos(ang) * Math.cos(elev) * spd,
+        Math.sin(elev) * spd + upwardBias,
+        Math.sin(ang) * Math.cos(elev) * spd,
+        col, 0.24 + Math.random() * 0.2,
+        0.3 + Math.random() * 0.5, cfg.effect.gravity, cfg.effect.drag
+      );
+      if (k % 5 === 0) {
+        emitSpark(ep, MAX_EMBER, cx, cy, cz,
+          (Math.random() - 0.5) * 2.2, 1.0 + Math.random() * 2.6, (Math.random() - 0.5) * 2.2,
+          pal.ember[Math.floor(Math.random() * pal.ember.length)],
+          0.14 + Math.random() * 0.08, 1.1 + Math.random() * 0.9, 5.2, 0.94
+        );
+      }
+    }
+    // Rolling smoke cloud hugging the ground
+    const smk = Math.floor(9 * graphics.smokeDensity);
+    for (let s = 0; s < smk; s++) {
+      emitSmoke(
+        cx + (Math.random() - 0.5) * 0.55, cy + Math.random() * 0.3, cz + (Math.random() - 0.5) * 0.55,
+        (Math.random() - 0.5) * 1.1, 0.35 + Math.random() * 0.5, (Math.random() - 0.5) * 1.1,
+        0.8 + Math.random() * 0.7, 1.9 + Math.random() * 1.0, cfg.effect.smokeAmount
+      );
+    }
+  };
 
+  /**
+   * Scatters paper waste from a burst. Fragments are ejected outward with the
+   * blast force, tumble, decelerate through air drag and fall onto the real
+   * ground plane where they settle and eventually fade.
+   */
+  const emitPaper = (cx: number, cy: number, cz: number, cfg: CrackerConfig, distance = 0) => {
+    const profile = cfg.paperDebris;
+    if (!profile.enabled || profile.fragmentCount <= 0) return;
+    const n = Math.max(1, Math.round(profile.fragmentCount * graphics.particleMultiplier));
+    const baseSize = profile.fragmentSize * (reducedFlash ? 0.9 : 1);
+
+    for (let k = 0; k < n; k++) {
+      const i = dp.cursor % MAX_DEBRIS;
+      dp.cursor = (dp.cursor + 1) % MAX_DEBRIS;
+      const i3 = i * 3;
+
+      dp.positions[i3] = cx + (Math.random() - 0.5) * 0.12;
+      dp.positions[i3 + 1] = cy + (Math.random() - 0.5) * 0.1;
+      dp.positions[i3 + 2] = cz + (Math.random() - 0.5) * 0.12;
+
+      const ang = Math.random() * Math.PI * 2;
+      const elev = Math.random() * Math.PI * 0.42;
+      const spd = profile.burstSpeed * (0.4 + Math.random() * 0.95);
+      dp.velocities[i3] = Math.cos(ang) * Math.cos(elev) * spd;
+      dp.velocities[i3 + 1] = Math.sin(elev) * spd + 0.6 + Math.random() * 1.2;
+      dp.velocities[i3 + 2] = Math.sin(ang) * Math.cos(elev) * spd;
+
+      dp.rots[i3] = Math.random() * Math.PI * 2;
+      dp.rots[i3 + 1] = Math.random() * Math.PI * 2;
+      dp.rots[i3 + 2] = Math.random() * Math.PI * 2;
+      dp.angVels[i3] = (Math.random() - 0.5) * 16;
+      dp.angVels[i3 + 1] = (Math.random() - 0.5) * 16;
+      dp.angVels[i3 + 2] = (Math.random() - 0.5) * 16;
+
+      // Mixed fragment silhouettes: irregular scraps, thin torn strips and
+      // slightly larger folded packaging pieces.
+      const shape = Math.random();
+      let sx: number, sy: number;
+      if (shape < 0.45) {
+        sx = baseSize * (0.7 + Math.random() * 0.7);
+        sy = baseSize * (0.7 + Math.random() * 0.7);
+      } else if (shape < 0.8) {
+        sx = baseSize * (1.6 + Math.random() * 1.1);
+        sy = baseSize * (0.32 + Math.random() * 0.3);
+      } else {
+        sx = baseSize * (1.0 + Math.random() * 0.9);
+        sy = baseSize * (0.9 + Math.random() * 0.8);
+      }
+      dp.scales[i3] = sx;
+      dp.scales[i3 + 1] = sy;
+      dp.scales[i3 + 2] = 1;
+
+      const color = profile.colors.length > 0
+        ? profile.colors[Math.floor(Math.random() * profile.colors.length)]
+        : '#e7e5e4';
+      tmpColor.set(color);
+      dp.colors[i3] = tmpColor.r;
+      dp.colors[i3 + 1] = tmpColor.g;
+      dp.colors[i3 + 2] = tmpColor.b;
+
+      dp.alphas[i] = 1;
+      dp.ages[i] = 0;
+      dp.settleAges[i] = 0;
+      dp.groundLifetimes[i] = profile.groundLifetime;
+      dp.states[i] = 1;
+    }
+
+    // Soft paper landing rustle, position-mixed and distance-attenuated
+    audioSystem.playPaperDebris(Math.min(10, Math.round(n * 0.35)), distance);
+  };
+
+  // ── Main frame loop ───────────────────────────────────────────────────────
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.08);
     const nowMs = performance.now();
+    const camPos = state.camera.position;
 
     let l1pos: [number, number, number] | null = null, l1col = '#fbbf24', l1int = 0;
     let l2pos: [number, number, number] | null = null, l2col = '#f97316', l2int = 0;
@@ -405,12 +707,15 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
           rocketLaunched: false, rocketExploded: false,
           shellsFired: 0, garlandPopsFired: 0,
           chakriAngle: 0, fuseFlashTimer: 0,
+          burstFired: false, launchFired: false, paperFired: false, hopPhase: 0,
         };
       }
       const tk = trackers.current[inst.instanceId];
       const cfg = CRACKERS[inst.crackerId];
       const pal = PALETTES[inst.crackerId] || PALETTES.rocket;
       const [px, py, pz] = inst.position;
+      // Distance-attenuated, stereo-aware audio driven by listener (camera) range
+      const camDist = Math.hypot(camPos.x - px, camPos.y - py, camPos.z - pz);
 
       // ── IGNITING: Layered fuse effect at physical fuse anchor ────────
       if (inst.state === 'Igniting') {
@@ -583,7 +888,7 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
       else if (inst.crackerId === 'rocket') {
         if (!tk.rocketLaunched) {
           tk.rocketLaunched = true;
-          audioSystem.playRocketLaunch();
+          audioSystem.playLaunch('rocket', camDist);
         }
         const fDur = 1.05;
         if (ae < fDur) {
@@ -624,7 +929,10 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
           tk.rocketExploded = true;
           const bY = py + 0.38 + cfg.effect.launchHeight;
 
-          audioSystem.playAerialExplosion(1.0);
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
           if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
           // Central flash sparks
           const flashN = Math.floor(55 * graphics.particleMultiplier);
@@ -672,6 +980,12 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
         const shellInterval = (cfg.activeDuration - 1.2) / cfg.effect.burstCount;
         const expected = Math.min(cfg.effect.burstCount, Math.floor(ae / shellInterval) + 1);
 
+        // Mortar launch thump on the first shell
+        if (!tk.launchFired) {
+          tk.launchFired = true;
+          audioSystem.playLaunch('shell', camDist);
+        }
+
         // Ground mortar sparks while launching
         if (Math.random() < 0.7) {
           emitSpark(sp, MAX_SPARK,
@@ -698,7 +1012,11 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
             );
           }
 
-          audioSystem.playAerialExplosion(0.9 + Math.random() * 0.2);
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+            pitch: 0.97 + Math.random() * 0.06,
+          });
           if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity * 0.85);
 
           // Pick a unique colour pair per shell
@@ -756,7 +1074,11 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
           const popX = px + (Math.random() - 0.5) * 0.1;
           const popZ = pz + zOff;
 
-          audioSystem.playGarlandPop();
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+            pitch: 0.92 + Math.random() * 0.16,
+          });
           if (!reducedFlash && pi % 2 === 0) onCameraShake(cfg.effect.cameraShakeIntensity * 0.55);
 
           // Sharp crack — flat radial pop
@@ -788,6 +1110,288 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
             );
           }
           l1pos = [popX, py + 0.3, popZ]; l1col = '#f97316'; l1int = cfg.effect.lightIntensity;
+        }
+      }
+
+      // ════ G. BIJILI — Lightning-sharp single crack ═══════════════════
+      else if (inst.crackerId === 'bijili') {
+        if (!tk.burstFired) {
+          tk.burstFired = true;
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
+          if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
+          emitGroundBlast(
+            px, py + 0.06, pz, cfg, pal,
+            cfg.effect.particlesPerBurst, cfg.effect.spreadRadius * 2.1, 1.5
+          );
+          emitPaper(px, py + 0.07, pz, cfg, camDist);
+          l2pos = [px, py + 0.12, pz]; l2col = '#fca5a5'; l2int = cfg.effect.lightIntensity;
+        } else if (ae < 0.4) {
+          const fade = 1 - ae / 0.4;
+          l2pos = [px, py + 0.1, pz]; l2col = '#fca5a5'; l2int = cfg.effect.lightIntensity * fade * 0.6;
+        }
+      }
+
+      // ════ H. CHOTA ZAMEEN — Small low paper burst ════════════════════
+      else if (inst.crackerId === 'small-ground') {
+        if (!tk.burstFired) {
+          tk.burstFired = true;
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
+          if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
+          emitGroundBlast(
+            px, py + 0.05, pz, cfg, pal,
+            cfg.effect.particlesPerBurst, cfg.effect.spreadRadius * 1.9, 1.7
+          );
+          emitPaper(px, py + 0.06, pz, cfg, camDist);
+          l2pos = [px, py + 0.14, pz]; l2col = '#fde047'; l2int = cfg.effect.lightIntensity;
+        } else if (ae < 0.45) {
+          const fade = 1 - ae / 0.45;
+          l2pos = [px, py + 0.12, pz]; l2col = '#fbbf24'; l2int = cfg.effect.lightIntensity * fade * 0.65;
+        }
+      }
+
+      // ════ I. BADA ZAMEEN — Heavy ground blast ════════════════════════
+      else if (inst.crackerId === 'large-ground') {
+        if (!tk.burstFired) {
+          tk.burstFired = true;
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
+          if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
+          emitGroundBlast(
+            px, py + 0.07, pz, cfg, pal,
+            cfg.effect.particlesPerBurst, cfg.effect.spreadRadius * 1.9, 2.4
+          );
+          emitPaper(px, py + 0.08, pz, cfg, camDist);
+          l2pos = [px, py + 0.16, pz]; l2col = '#fb923c'; l2int = cfg.effect.lightIntensity;
+        } else if (ae < 0.5) {
+          const fade = 1 - ae / 0.5;
+          l2pos = [px, py + 0.14, pz]; l2col = '#f97316'; l2int = cfg.effect.lightIntensity * fade * 0.6;
+        }
+      }
+
+      // ════ J. PAPER BOMB — Thundering paper-scattering blast ═══════════
+      else if (inst.crackerId === 'paper-bomb') {
+        if (!tk.burstFired) {
+          tk.burstFired = true;
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
+          if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
+          emitGroundBlast(
+            px, py + 0.08, pz, cfg, pal,
+            cfg.effect.particlesPerBurst, cfg.effect.spreadRadius * 1.8, 2.8
+          );
+          emitPaper(px, py + 0.09, pz, cfg, camDist);
+          l2pos = [px, py + 0.18, pz]; l2col = '#fef3c7'; l2int = cfg.effect.lightIntensity;
+        } else if (ae < 0.55) {
+          const fade = 1 - ae / 0.55;
+          l2pos = [px, py + 0.16, pz]; l2col = '#f59e0b'; l2int = cfg.effect.lightIntensity * fade * 0.6;
+        }
+      }
+
+      // ════ K. LAKSHMI — Sustained golden fountain + paper shell split ══
+      else if (inst.crackerId === 'lakshmi') {
+        const nozzleY = py + 0.4;
+        const envelope = prog < 0.1 ? prog / 0.1 : prog > 0.88 ? (1 - prog) / 0.12 : 1;
+        const n = Math.max(2, Math.floor(210 * dt * graphics.particleMultiplier * envelope));
+
+        for (let s = 0; s < n; s++) {
+          const ang = Math.random() * Math.PI * 2;
+          const isCentral = Math.random() < 0.4;
+          const radial = isCentral ? 0.06 + Math.random() * 0.18 : 0.22 + Math.random() * 1.05;
+          const upSpeed = isCentral
+            ? (4.4 + Math.random() * 3.6) * envelope
+            : (2.6 + Math.random() * 2.6) * envelope;
+          const layer = Math.random();
+          const col = layer < 0.72
+            ? pal.primary[Math.floor(Math.random() * pal.primary.length)]
+            : pal.secondary[Math.floor(Math.random() * pal.secondary.length)];
+          emitSpark(sp, MAX_SPARK,
+            px + (Math.random() - 0.5) * 0.05, nozzleY, pz + (Math.random() - 0.5) * 0.05,
+            Math.cos(ang) * radial, upSpeed, Math.sin(ang) * radial,
+            col, 0.26 + Math.random() * 0.22,
+            0.7 + Math.random() * 0.9, cfg.effect.gravity, cfg.effect.drag
+          );
+        }
+        // Falling golden/silver ember shower
+        if (ae > 0.35) {
+          const eCount = Math.max(1, Math.floor(30 * dt * graphics.particleMultiplier * envelope));
+          for (let e = 0; e < eCount; e++) {
+            const ang2 = Math.random() * Math.PI * 2;
+            const r = 0.4 + Math.random() * 1.2;
+            emitSpark(ep, MAX_EMBER,
+              px + Math.cos(ang2) * r, py + 2.1 + Math.random() * 1.5, pz + Math.sin(ang2) * r,
+              (Math.random() - 0.5) * 0.4, -0.5 - Math.random() * 1.0, (Math.random() - 0.5) * 0.4,
+              pal.ember[Math.floor(Math.random() * pal.ember.length)],
+              0.16 + Math.random() * 0.1, 0.9 + Math.random() * 0.8, 2.5, 0.97
+            );
+          }
+        }
+        if (Math.random() < 0.5 * envelope) {
+          emitSmoke(px, nozzleY + 0.4, pz,
+            (Math.random() - 0.5) * 0.45, 0.85 + Math.random() * 0.6, (Math.random() - 0.5) * 0.45,
+            0.65 + Math.random() * 0.45, 2.0 + Math.random() * 1.0, envelope
+          );
+        }
+        l1pos = [px, nozzleY + 0.75, pz]; l1col = '#eab308'; l1int = cfg.effect.lightIntensity * envelope;
+
+        // As the composition runs out the printed casing splits and scatters paper
+        if (!tk.paperFired && prog > 0.9) {
+          tk.paperFired = true;
+          emitPaper(px, py + 0.22, pz, cfg, camDist);
+        }
+      }
+
+      // ════ L. KURUVI — Hopping whistling "sparrow" that pops ══════════
+      else if (inst.crackerId === 'kuruvi') {
+        if (!tk.launchFired) {
+          tk.launchFired = true;
+          audioSystem.playLaunch('kuruvi', camDist);
+        }
+        tk.hopPhase += dt * 3.1;
+        // Erratic low hop path across the road, computed in world space
+        const hopX = px + Math.sin(tk.hopPhase * 1.6) * 0.75 + Math.sin(tk.hopPhase * 3.4) * 0.26;
+        const hopZ = pz + Math.cos(tk.hopPhase * 1.25 + 1.1) * 0.68;
+        const hopY = py + 0.05 + Math.abs(Math.sin(tk.hopPhase * 2.3)) * 0.3;
+
+        // Spark/whistle trail that traces the hop
+        const tCount = Math.max(1, Math.floor(70 * dt * graphics.particleMultiplier));
+        for (let t = 0; t < tCount; t++) {
+          emitSpark(sp, MAX_SPARK,
+            hopX + (Math.random() - 0.5) * 0.05, hopY, hopZ + (Math.random() - 0.5) * 0.05,
+            (Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 1.2 + 0.6, (Math.random() - 0.5) * 1.6,
+            t % 3 === 0 ? '#ffffff' : pal.primary[Math.floor(Math.random() * pal.primary.length)],
+            0.2 + Math.random() * 0.14, 0.3 + Math.random() * 0.4,
+            cfg.effect.gravity, cfg.effect.drag
+          );
+        }
+        if (Math.random() < 0.3) {
+          emitSmoke(hopX, hopY + 0.05, hopZ,
+            (Math.random() - 0.5) * 0.35, 0.3 + Math.random() * 0.3, (Math.random() - 0.5) * 0.35,
+            0.4 + Math.random() * 0.25, 1.2 + Math.random() * 0.6, 0.6
+          );
+        }
+        l1pos = [hopX, hopY + 0.06, hopZ]; l1col = '#4ade80'; l1int = cfg.effect.lightIntensity;
+
+        // Final pop
+        if (!tk.burstFired && prog > 0.82) {
+          tk.burstFired = true;
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
+          if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
+          emitBurst(hopX, hopY + 0.1, hopZ, cfg.effect.particlesPerBurst, cfg.effect.spreadRadius,
+            pal.primary, pal.secondary, cfg.effect.gravity, cfg.effect.drag, false
+          );
+          for (let e = 0; e < Math.floor(14 * graphics.particleMultiplier); e++) {
+            emitSmoke(hopX + (Math.random() - 0.5) * 0.3, hopY, hopZ + (Math.random() - 0.5) * 0.3,
+              (Math.random() - 0.5) * 0.6, 0.4 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6,
+              0.5 + Math.random() * 0.3, 1.5 + Math.random() * 0.7, 0.8
+            );
+          }
+          l2pos = [hopX, hopY + 0.12, hopZ]; l2col = '#bbf7d0'; l2int = cfg.effect.lightIntensity * 1.2;
+        }
+      }
+
+      // ════ M. SINGLE SHOT — One mortar thump, one high shell ══════════
+      else if (inst.crackerId === 'single-shot') {
+        if (!tk.launchFired) {
+          tk.launchFired = true;
+          audioSystem.playLaunch('shell', camDist);
+          // Muzzle sparks from the tube mouth
+          const mCount = Math.floor(30 * graphics.particleMultiplier);
+          for (let m = 0; m < mCount; m++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 1.6 + Math.random() * 3.0;
+            emitSpark(sp, MAX_SPARK,
+              px + (Math.random() - 0.5) * 0.1, py + 0.28, pz + (Math.random() - 0.5) * 0.1,
+              Math.cos(ang) * spd * 0.4, 2.0 + Math.random() * 3.2, Math.sin(ang) * spd * 0.4,
+              '#fde68a', 0.24 + Math.random() * 0.16, 0.3 + Math.random() * 0.4, 4.4, 0.94
+            );
+          }
+          emitSmoke(px, py + 0.34, pz,
+            0, 0.3 + Math.random() * 0.3, 0,
+            0.8 + Math.random() * 0.5, 1.8 + Math.random() * 0.8, 0.9
+          );
+        }
+        const fDur = 0.95;
+        if (ae < fDur) {
+          const fP = ae / fDur;
+          const shellY = py + 0.3 + Math.pow(fP, 1.8) * cfg.effect.launchHeight;
+          const tCount = Math.max(2, Math.floor(150 * dt * graphics.particleMultiplier));
+          for (let t = 0; t < tCount; t++) {
+            emitSpark(sp, MAX_SPARK,
+              px + (Math.random() - 0.5) * 0.06, shellY, pz + (Math.random() - 0.5) * 0.06,
+              (Math.random() - 0.5) * 0.9, -2.0 - Math.random() * 1.6, (Math.random() - 0.5) * 0.9,
+              t % 4 < 2 ? '#ffffff' : (t % 4 === 2 ? '#fde047' : '#fb923c'),
+              t % 4 < 2 ? 0.3 + Math.random() * 0.14 : 0.22 + Math.random() * 0.12,
+              0.3 + Math.random() * 0.4, 2.2, 0.95
+            );
+          }
+          emitSmoke(px, shellY - 0.16, pz,
+            (Math.random() - 0.5) * 0.24, -0.2 - Math.random() * 0.2, (Math.random() - 0.5) * 0.24,
+            0.45 + Math.random() * 0.3, 1.3, 0.75
+          );
+          l1pos = [px, shellY, pz]; l1col = '#38bdf8'; l1int = 4.2;
+
+          if (!rocketTrackRef.current.active || shellY > rocketTrackRef.current.y) {
+            rocketTrackRef.current.active = true;
+            rocketTrackRef.current.x = px;
+            rocketTrackRef.current.y = shellY;
+            rocketTrackRef.current.z = pz;
+            rocketTrackRef.current.holdSecondsLeft = 1.8;
+          }
+        } else if (!tk.burstFired) {
+          tk.burstFired = true;
+          const bY = py + 0.3 + cfg.effect.launchHeight;
+          audioSystem.playBurst(cfg.audio.burst, {
+            distance: camDist,
+            intensity: cfg.explosionIntensity,
+          });
+          if (!reducedFlash) onCameraShake(cfg.effect.cameraShakeIntensity);
+          // Central flash
+          const flashN = Math.floor(45 * graphics.particleMultiplier);
+          for (let f = 0; f < flashN; f++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 1.4 + Math.random() * 3.2;
+            emitSpark(sp, MAX_SPARK, px, bY, pz,
+              Math.cos(ang) * spd, (Math.random() - 0.5) * spd, Math.sin(ang) * spd,
+              '#ffffff', 0.5 + Math.random() * 0.28, 0.35 + Math.random() * 0.2, 4, 0.88
+            );
+          }
+          emitBurst(px, bY, pz, cfg.effect.particlesPerBurst, cfg.effect.spreadRadius,
+            pal.primary, pal.secondary, cfg.effect.gravity, cfg.effect.drag, true
+          );
+          for (let e = 0; e < Math.floor(34 * graphics.particleMultiplier); e++) {
+            const ang = Math.random() * Math.PI * 2;
+            const ph = Math.acos(2 * Math.random() - 1);
+            const spd = 1.4 + Math.random() * 2.8;
+            emitSpark(ep, MAX_EMBER, px, bY, pz,
+              Math.sin(ph) * Math.cos(ang) * spd, Math.cos(ph) * spd, Math.sin(ph) * Math.sin(ang) * spd,
+              pal.ember[Math.floor(Math.random() * pal.ember.length)],
+              0.2 + Math.random() * 0.1, 2.6 + Math.random() * 1.5, 2.1, 0.98
+            );
+          }
+          l2pos = [px, bY, pz]; l2col = '#fde68a'; l2int = cfg.effect.lightIntensity * 1.6;
+
+          rocketTrackRef.current.active = true;
+          rocketTrackRef.current.x = px;
+          rocketTrackRef.current.y = bY;
+          rocketTrackRef.current.z = pz;
+          rocketTrackRef.current.holdSecondsLeft = 1.8;
+        } else if (ae < fDur + 0.45) {
+          const fade = 1 - (ae - fDur) / 0.45;
+          l2pos = [px, py + cfg.effect.launchHeight, pz];
+          l2col = '#fde68a'; l2int = cfg.effect.lightIntensity * fade;
         }
       }
     }
@@ -867,6 +1471,76 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
       smp.alphas[i] = 0.26 * graphics.smokeDensity * Math.sin(na * Math.PI);
     }
 
+    // ── Physics update: paper debris (gravity, tumble, settle, fade) ─────
+
+    const debrisMesh = debrisMeshRef.current;
+    for (let i = 0; i < MAX_DEBRIS; i++) {
+      const st = dp.states[i];
+      const i3 = i * 3;
+
+      if (st === 1) {
+        // Airborne: air resistance slows the fragment, gravity pulls it down
+        const drag = Math.pow(0.972, dt * 60);
+        dp.velocities[i3] *= drag;
+        dp.velocities[i3 + 2] *= drag;
+        dp.velocities[i3 + 1] = dp.velocities[i3 + 1] * drag - 9.6 * dt;
+        dp.positions[i3] += dp.velocities[i3] * dt;
+        dp.positions[i3 + 1] += dp.velocities[i3 + 1] * dt;
+        dp.positions[i3 + 2] += dp.velocities[i3 + 2] * dt;
+
+        // Natural tumbling while in flight
+        dp.rots[i3] += dp.angVels[i3] * dt;
+        dp.rots[i3 + 1] += dp.angVels[i3 + 1] * dt;
+        dp.rots[i3 + 2] += dp.angVels[i3 + 2] * dt;
+        dp.angVels[i3] *= 0.99;
+        dp.angVels[i3 + 1] *= 0.99;
+        dp.angVels[i3 + 2] *= 0.99;
+
+        // Ground collision — fragment lands flat, never sinks or hovers
+        if (dp.positions[i3 + 1] <= groundY + 0.012) {
+          dp.positions[i3 + 1] = groundY + 0.012;
+          // Lie almost flat on the road with a small in-plane yaw
+          dp.rots[i3] = -Math.PI / 2 + (Math.random() - 0.5) * 0.2;
+          dp.rots[i3 + 1] = 0;
+          dp.rots[i3 + 2] = Math.random() * Math.PI * 2;
+          dp.states[i] = 2;
+          dp.settleAges[i] = 0;
+        }
+      } else if (st === 2) {
+        // Resting on the ground until its lifetime expires
+        dp.settleAges[i] += dt;
+        if (dp.settleAges[i] >= dp.groundLifetimes[i]) {
+          dp.states[i] = 3;
+        }
+      } else if (st === 3) {
+        // Gentle fade-out before removal so waste never pops out abruptly
+        dp.alphas[i] -= dt / 1.6;
+        if (dp.alphas[i] <= 0) {
+          dp.alphas[i] = 0;
+          dp.states[i] = 0;
+          dp.scales[i3] = 0;
+          dp.scales[i3 + 1] = 0;
+        }
+      }
+      // st === 0 stays at zero scale (invisible) until reused
+
+      // Compose the instance matrix (free fragments keep zero scale → invisible)
+      debrisDummy.position.set(dp.positions[i3], dp.positions[i3 + 1], dp.positions[i3 + 2]);
+      debrisDummy.rotation.set(dp.rots[i3], dp.rots[i3 + 1], dp.rots[i3 + 2]);
+      debrisDummy.scale.set(dp.scales[i3], dp.scales[i3 + 1], dp.scales[i3 + 2]);
+      debrisDummy.updateMatrix();
+      if (debrisMesh) {
+        debrisMesh.setMatrixAt(i, debrisDummy.matrix);
+        debrisColor.setRGB(dp.colors[i3], dp.colors[i3 + 1], dp.colors[i3 + 2]);
+        debrisMesh.setColorAt(i, debrisColor);
+      }
+    }
+    if (debrisMesh) {
+      debrisMesh.instanceMatrix.needsUpdate = true;
+      if (debrisMesh.instanceColor) debrisMesh.instanceColor.needsUpdate = true;
+    }
+    (debrisGeo.attributes.aAlpha as THREE.BufferAttribute).needsUpdate = true;
+
     // Mark buffer attributes dirty
     if (sparkGeoRef.current) {
       (sparkGeoRef.current.attributes.position as THREE.BufferAttribute).needsUpdate = true;
@@ -900,7 +1574,9 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
         lt.position.set(...pos);
         lt.color.set(color);
         const target = reducedFlash ? Math.min(1.8, intensity * 0.42) : intensity;
-        lt.intensity = THREE.MathUtils.lerp(lt.intensity, target, 0.38);
+        // Subtle organic flicker so firework light never reads as a static lamp.
+        const flicker = 0.92 + Math.sin(nowMs * 0.02 + pos[0] * 3.1) * 0.08;
+        lt.intensity = THREE.MathUtils.lerp(lt.intensity, target * flicker, 0.38);
       } else {
         lt.intensity = THREE.MathUtils.lerp(lt.intensity, 0, 0.18);
       }
@@ -971,6 +1647,13 @@ export const FireworksSystem3D: React.FC<FireworksSystem3DProps> = ({
           blending={THREE.AdditiveBlending}
         />
       </points>
+
+      {/* ── Paper waste debris (instanced, world-space, settles on ground) ── */}
+      <instancedMesh
+        ref={debrisMeshRef}
+        args={[debrisGeo, debrisMat, MAX_DEBRIS]}
+        frustumCulled={false}
+      />
 
       {/* ── Dynamic point lights (3) ── */}
       <pointLight ref={light1Ref} intensity={0} distance={8} decay={1.8} />

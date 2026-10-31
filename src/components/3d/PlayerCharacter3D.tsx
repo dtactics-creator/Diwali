@@ -7,6 +7,11 @@ import {
   PlayableBounds,
   RocketTrackData,
 } from '../../types/game';
+import {
+  finalizeColorMap,
+  getSurfaceNormalMap,
+  getSurfaceRoughnessMap,
+} from '../../utils/materialTextures';
 
 export interface CharacterInputState {
   forward: boolean;
@@ -36,27 +41,99 @@ interface PlayerCharacter3DProps {
   onAssetStatusChange?: (loadedCustom: boolean, availableClips: string[]) => void;
   enableShadows: boolean;
   rocketTrackRef?: React.MutableRefObject<RocketTrackData>;
+  /** Resolution of the generated procedural PBR detail maps (quality preset). */
+  textureSize?: number;
+  /** Texture filtering budget from the active quality preset. */
+  anisotropy?: number;
 }
 
 function createDenimTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#1e2f4d';
-  ctx.fillRect(0, 0, 128, 128);
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+
+  // Base indigo with a subtle vertical wash gradient (worn denim variation)
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#24395c');
+  grad.addColorStop(0.5, '#1e2f4d');
+  grad.addColorStop(1, '#1a2942');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Diagonal twill weave
   ctx.lineWidth = 1;
-  for (let i = -128; i < 256; i += 4) {
+  for (let i = -256; i < 512; i += 4) {
     ctx.beginPath();
     ctx.moveTo(i, 0);
-    ctx.lineTo(i + 128, 128);
+    ctx.lineTo(i + 256, 256);
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i + 2, 0);
+    ctx.lineTo(i + 258, 256);
+    ctx.strokeStyle = 'rgba(0,0,0,0.13)';
     ctx.stroke();
   }
+
+  // Vertical selvedge seam with gold stitching
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(24, 0);
+  ctx.lineTo(24, 256);
+  ctx.stroke();
+  ctx.strokeStyle = '#c8a24a';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(20, 0);
+  ctx.lineTo(20, 256);
+  ctx.moveTo(28, 0);
+  ctx.lineTo(28, 256);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Horizontal stitched yoke seam near the top
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 42);
+  ctx.lineTo(256, 42);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(200,162,74,0.75)';
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.moveTo(0, 46);
+  ctx.lineTo(256, 46);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Faded wear patches for cloth depth
+  const rnd = (seed: number) => {
+    let s = seed;
+    return () => {
+      s = (s * 16807) % 2147483647;
+      return s / 2147483647;
+    };
+  };
+  const rand = rnd(9137);
+  for (let i = 0; i < 26; i++) {
+    const x = rand() * 256;
+    const y = rand() * 256;
+    const r = 8 + rand() * 26;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(150,175,215,0.10)');
+    g.addColorStop(1, 'rgba(150,175,215,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 3);
   return tex;
 }
 
@@ -67,27 +144,76 @@ function createHoodieTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d')!;
 
   const grad = ctx.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#841d37ff');
+  grad.addColorStop(0, '#8a1f3b');
+  grad.addColorStop(0.55, '#6e182d');
   grad.addColorStop(1, '#4c1122');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 256, 256);
 
-  // Subtle festive gold geometric motif on chest
+  // Knitted cotton loop texture
+  ctx.lineWidth = 1;
+  for (let y = 0; y < 256; y += 5) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(256, y);
+    ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, y + 2);
+    ctx.lineTo(256, y + 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    ctx.stroke();
+  }
+  for (let x = 0; x < 256; x += 6) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 256);
+    ctx.strokeStyle = 'rgba(0,0,0,0.03)';
+    ctx.stroke();
+  }
+
+  // Shoulder yoke seam + stitch line
+  ctx.strokeStyle = 'rgba(0,0,0,0.30)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 66);
+  ctx.quadraticCurveTo(128, 86, 256, 66);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(251,191,36,0.55)';
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(0, 71);
+  ctx.quadraticCurveTo(128, 91, 256, 71);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Ribbed hem band at the bottom
+  const hemTop = 226;
+  ctx.fillStyle = '#5a1425';
+  ctx.fillRect(0, hemTop, 256, 30);
+  for (let x = 0; x < 256; x += 6) {
+    ctx.fillStyle = x % 12 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.10)';
+    ctx.fillRect(x, hemTop, 3, 30);
+  }
+
+  // Subtle festive gold geometric motif on the chest
   ctx.strokeStyle = '#fbbf24';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(128, 105, 28, 0, Math.PI * 2);
+  ctx.arc(128, 150, 28, 0, Math.PI * 2);
   ctx.stroke();
-
   ctx.beginPath();
-  ctx.moveTo(128, 70);
-  ctx.lineTo(163, 105);
-  ctx.lineTo(128, 140);
-  ctx.lineTo(93, 105);
+  ctx.moveTo(128, 115);
+  ctx.lineTo(163, 150);
+  ctx.lineTo(128, 185);
+  ctx.lineTo(93, 150);
   ctx.closePath();
   ctx.stroke();
 
   const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }
 
@@ -569,6 +695,8 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
   onAssetStatusChange,
   enableShadows,
   rocketTrackRef: _rocketTrackRef,
+  textureSize = 256,
+  anisotropy = 4,
 }) => {
   const rootGroupRef = useRef<THREE.Group>(null);
   const rigRootRef = useRef<THREE.Group>(null);
@@ -596,8 +724,40 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
 
   const [usingCustomGlb, setUsingCustomGlb] = useState(false);
 
-  const denimTexture = useMemo(() => createDenimTexture(), []);
-  const hoodieTexture = useMemo(() => createHoodieTexture(), []);
+  // ── Procedural PBR surface detail ────────────────────────────────────────
+  // Colour maps are tagged sRGB; normal/roughness maps stay linear. All
+  // textures are memoised in a global cache so every material shares one
+  // GPU upload per surface type.
+  const denimTexture = useMemo(
+    () => finalizeColorMap(createDenimTexture(), 3, 3, anisotropy),
+    [anisotropy]
+  );
+  const hoodieTexture = useMemo(
+    () => finalizeColorMap(createHoodieTexture(), 2, 2, anisotropy),
+    [anisotropy]
+  );
+
+  const fabricOpts = useMemo(
+    () => ({ size: textureSize, repeatX: 2, repeatY: 2, anisotropy }),
+    [textureSize, anisotropy]
+  );
+  const denimOpts = useMemo(
+    () => ({ size: textureSize, repeatX: 3, repeatY: 3, anisotropy }),
+    [textureSize, anisotropy]
+  );
+
+  const fabricNormal = useMemo(() => getSurfaceNormalMap('fabric', fabricOpts, 0.9), [fabricOpts]);
+  const fabricRough = useMemo(() => getSurfaceRoughnessMap('fabric', fabricOpts, 0.4), [fabricOpts]);
+  const denimNormal = useMemo(() => getSurfaceNormalMap('denim', denimOpts, 0.75), [denimOpts]);
+  const denimRough = useMemo(() => getSurfaceRoughnessMap('denim', denimOpts, 0.4), [denimOpts]);
+  const skinNormal = useMemo(() => getSurfaceNormalMap('skin', fabricOpts, 0.5), [fabricOpts]);
+  const skinRough = useMemo(() => getSurfaceRoughnessMap('skin', fabricOpts, 0.28), [fabricOpts]);
+  const hairNormal = useMemo(() => getSurfaceNormalMap('hair', fabricOpts, 0.95), [fabricOpts]);
+  const leatherNormal = useMemo(
+    () => getSurfaceNormalMap('leather', { size: textureSize, anisotropy }, 0.65),
+    [textureSize, anisotropy]
+  );
+
   const builtInClips = useMemo(() => buildRigAnimationClips(), []);
 
   // Reset spawn position when environment changes
@@ -1000,8 +1160,11 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
             <capsuleGeometry args={[0.145, 0.1, 12, 20]} />
             <meshStandardMaterial
               map={denimTexture}
-              roughness={0.82}
-              metalness={0.05}
+              normalMap={denimNormal}
+              roughnessMap={denimRough}
+              roughness={0.9}
+              metalness={0.0}
+              envMapIntensity={0.5}
             />
           </mesh>
 
@@ -1016,15 +1179,24 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
               <capsuleGeometry args={[0.165, 0.34, 16, 24]} />
               <meshStandardMaterial
                 map={hoodieTexture}
-                roughness={0.72}
-                metalness={0.06}
+                normalMap={fabricNormal}
+                roughnessMap={fabricRough}
+                roughness={0.88}
+                metalness={0.0}
+                envMapIntensity={0.45}
               />
             </mesh>
 
             {/* Hoodie Bottom Ribbed Hem & Inner Ivory Tee Layer */}
             <mesh position={[0, 0.04, 0]} castShadow={enableShadows}>
               <cylinderGeometry args={[0.158, 0.152, 0.06, 24]} />
-              <meshStandardMaterial color="#f8fafc" roughness={0.6} />
+              <meshStandardMaterial
+                color="#f8fafc"
+                normalMap={fabricNormal}
+                roughnessMap={fabricRough}
+                roughness={0.72}
+                metalness={0.0}
+              />
             </mesh>
 
             {/* Hoodie Draped Hood Behind Collar */}
@@ -1034,7 +1206,13 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
               castShadow={enableShadows}
             >
               <sphereGeometry args={[0.13, 18, 16]} />
-              <meshStandardMaterial color="#581325" roughness={0.78} />
+              <meshStandardMaterial
+                color="#581325"
+                normalMap={fabricNormal}
+                roughnessMap={fabricRough}
+                roughness={0.8}
+                metalness={0.0}
+              />
             </mesh>
 
             {/* Golden Drawstrings on Chest */}
@@ -1052,29 +1230,41 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
               {/* Neck */}
               <mesh position={[0, 0.03, 0]} castShadow={enableShadows}>
                 <cylinderGeometry args={[0.058, 0.066, 0.1, 16]} />
-                <meshStandardMaterial color="#c6865c" roughness={0.55} />
+                <meshStandardMaterial
+                  color="#c6865c"
+                  normalMap={skinNormal}
+                  roughnessMap={skinRough}
+                  roughness={0.62}
+                  metalness={0.0}
+                />
               </mesh>
 
               {/* Sculpted Head */}
               <mesh position={[0, 0.165, 0.01]} castShadow={enableShadows}>
                 <sphereGeometry args={[0.125, 24, 24]} />
-                <meshStandardMaterial color="#c98a60" roughness={0.52} />
+                <meshStandardMaterial
+                  color="#c98a60"
+                  normalMap={skinNormal}
+                  roughnessMap={skinRough}
+                  roughness={0.6}
+                  metalness={0.0}
+                />
               </mesh>
 
               {/* Nose Bridge */}
               <mesh position={[0, 0.16, 0.132]} rotation={[0.18, 0, 0]}>
                 <capsuleGeometry args={[0.016, 0.032, 8, 8]} />
-                <meshStandardMaterial color="#be7e54" roughness={0.55} />
+                <meshStandardMaterial color="#be7e54" normalMap={skinNormal} roughness={0.58} />
               </mesh>
 
               {/* Ears */}
               <mesh position={[-0.122, 0.16, 0]}>
                 <sphereGeometry args={[0.026, 12, 12]} />
-                <meshStandardMaterial color="#be7e54" roughness={0.55} />
+                <meshStandardMaterial color="#be7e54" normalMap={skinNormal} roughness={0.58} />
               </mesh>
               <mesh position={[0.122, 0.16, 0]}>
                 <sphereGeometry args={[0.026, 12, 12]} />
-                <meshStandardMaterial color="#be7e54" roughness={0.55} />
+                <meshStandardMaterial color="#be7e54" normalMap={skinNormal} roughness={0.58} />
               </mesh>
 
               {/* Eyes & Eyebrows */}
@@ -1098,11 +1288,21 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
               {/* Modern Textured Wavy Indian Hair Cap */}
               <mesh position={[0, 0.205, -0.005]} castShadow={enableShadows}>
                 <sphereGeometry args={[0.132, 24, 20, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
-                <meshStandardMaterial color="#141418" roughness={0.82} />
+                <meshStandardMaterial
+                  color="#141418"
+                  normalMap={hairNormal}
+                  roughness={0.85}
+                  metalness={0.0}
+                />
               </mesh>
               <mesh position={[0, 0.27, 0.06]} rotation={[0.3, 0, 0]}>
                 <capsuleGeometry args={[0.048, 0.09, 10, 14]} />
-                <meshStandardMaterial color="#18181f" roughness={0.8} />
+                <meshStandardMaterial
+                  color="#18181f"
+                  normalMap={hairNormal}
+                  roughness={0.84}
+                  metalness={0.0}
+                />
               </mesh>
             </group>
 
@@ -1110,19 +1310,37 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
             <group name="LeftUpperArm" position={[-0.21, 0.41, 0]}>
               <mesh position={[0, -0.12, 0]} castShadow={enableShadows}>
                 <capsuleGeometry args={[0.052, 0.2, 12, 16]} />
-                <meshStandardMaterial color="#6e182d" roughness={0.74} />
+                <meshStandardMaterial
+                  color="#6e182d"
+                  normalMap={fabricNormal}
+                  roughnessMap={fabricRough}
+                  roughness={0.82}
+                  metalness={0.0}
+                />
               </mesh>
 
               {/* LEFT FOREARM BONE */}
               <group name="LeftForeArm" position={[0, -0.26, 0]}>
                 <mesh position={[0, -0.11, 0]} castShadow={enableShadows}>
                   <capsuleGeometry args={[0.044, 0.18, 12, 16]} />
-                  <meshStandardMaterial color="#6e182d" roughness={0.74} />
+                  <meshStandardMaterial
+                    color="#6e182d"
+                    normalMap={fabricNormal}
+                    roughnessMap={fabricRough}
+                    roughness={0.82}
+                    metalness={0.0}
+                  />
                 </mesh>
                 {/* Left Hand */}
                 <mesh position={[0, -0.24, 0]} castShadow={enableShadows}>
                   <sphereGeometry args={[0.044, 14, 14]} />
-                  <meshStandardMaterial color="#c6865c" roughness={0.55} />
+                  <meshStandardMaterial
+                    color="#c6865c"
+                    normalMap={skinNormal}
+                    roughnessMap={skinRough}
+                    roughness={0.6}
+                    metalness={0.0}
+                  />
                 </mesh>
               </group>
             </group>
@@ -1131,21 +1349,39 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
             <group name="RightUpperArm" position={[0.21, 0.41, 0]}>
               <mesh position={[0, -0.12, 0]} castShadow={enableShadows}>
                 <capsuleGeometry args={[0.052, 0.2, 12, 16]} />
-                <meshStandardMaterial color="#6e182d" roughness={0.74} />
+                <meshStandardMaterial
+                  color="#6e182d"
+                  normalMap={fabricNormal}
+                  roughnessMap={fabricRough}
+                  roughness={0.82}
+                  metalness={0.0}
+                />
               </mesh>
 
               {/* RIGHT FOREARM BONE */}
               <group name="RightForeArm" position={[0, -0.26, 0]}>
                 <mesh position={[0, -0.11, 0]} castShadow={enableShadows}>
                   <capsuleGeometry args={[0.044, 0.18, 12, 16]} />
-                  <meshStandardMaterial color="#6e182d" roughness={0.74} />
+                  <meshStandardMaterial
+                    color="#6e182d"
+                    normalMap={fabricNormal}
+                    roughnessMap={fabricRough}
+                    roughness={0.82}
+                    metalness={0.0}
+                  />
                 </mesh>
 
                 {/* Right Hand + Handheld Glowing Agarbatti (Incense Stick for safe ignition) */}
                 <group position={[0, -0.24, 0]}>
                   <mesh castShadow={enableShadows}>
                     <sphereGeometry args={[0.044, 14, 14]} />
-                    <meshStandardMaterial color="#c6865c" roughness={0.55} />
+                    <meshStandardMaterial
+                      color="#c6865c"
+                      normalMap={skinNormal}
+                      roughnessMap={skinRough}
+                      roughness={0.6}
+                      metalness={0.0}
+                    />
                   </mesh>
 
                   {/* Agarbatti Stick */}
@@ -1176,25 +1412,47 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
           <group name="LeftThigh" position={[-0.095, -0.04, 0]}>
             <mesh position={[0, -0.21, 0]} castShadow={enableShadows}>
               <capsuleGeometry args={[0.068, 0.34, 12, 18]} />
-              <meshStandardMaterial map={denimTexture} roughness={0.82} />
+              <meshStandardMaterial
+                map={denimTexture}
+                normalMap={denimNormal}
+                roughnessMap={denimRough}
+                roughness={0.86}
+                metalness={0.0}
+              />
             </mesh>
 
             {/* LEFT SHIN BONE */}
             <group name="LeftShin" position={[0, -0.44, 0]}>
               <mesh position={[0, -0.2, 0]} castShadow={enableShadows}>
                 <capsuleGeometry args={[0.054, 0.34, 12, 18]} />
-                <meshStandardMaterial map={denimTexture} roughness={0.82} />
+                <meshStandardMaterial
+                  map={denimTexture}
+                  normalMap={denimNormal}
+                  roughnessMap={denimRough}
+                  roughness={0.86}
+                  metalness={0.0}
+                />
               </mesh>
               {/* Rolled Denim Cuff */}
               <mesh position={[0, -0.37, 0]}>
                 <cylinderGeometry args={[0.058, 0.058, 0.04, 16]} />
-                <meshStandardMaterial color="#93c5fd" roughness={0.85} />
+                <meshStandardMaterial
+                  color="#93c5fd"
+                  normalMap={fabricNormal}
+                  roughness={0.88}
+                  metalness={0.0}
+                />
               </mesh>
               {/* Left Sneaker (White/Crimson/Gold Street Sneaker) */}
               <group position={[0, -0.44, 0.04]}>
                 <mesh castShadow={enableShadows}>
                   <boxGeometry args={[0.105, 0.075, 0.22]} />
-                  <meshStandardMaterial color="#f8fafc" roughness={0.45} />
+                  <meshStandardMaterial
+                    color="#f8fafc"
+                    normalMap={leatherNormal}
+                    roughness={0.62}
+                    metalness={0.0}
+                  />
                 </mesh>
                 <mesh position={[0, -0.032, 0]}>
                   <boxGeometry args={[0.11, 0.022, 0.23]} />
@@ -1212,25 +1470,47 @@ export const PlayerCharacter3D: React.FC<PlayerCharacter3DProps> = ({
           <group name="RightThigh" position={[0.095, -0.04, 0]}>
             <mesh position={[0, -0.21, 0]} castShadow={enableShadows}>
               <capsuleGeometry args={[0.068, 0.34, 12, 18]} />
-              <meshStandardMaterial map={denimTexture} roughness={0.82} />
+              <meshStandardMaterial
+                map={denimTexture}
+                normalMap={denimNormal}
+                roughnessMap={denimRough}
+                roughness={0.86}
+                metalness={0.0}
+              />
             </mesh>
 
             {/* RIGHT SHIN BONE */}
             <group name="RightShin" position={[0, -0.44, 0]}>
               <mesh position={[0, -0.2, 0]} castShadow={enableShadows}>
                 <capsuleGeometry args={[0.054, 0.34, 12, 18]} />
-                <meshStandardMaterial map={denimTexture} roughness={0.82} />
+                <meshStandardMaterial
+                  map={denimTexture}
+                  normalMap={denimNormal}
+                  roughnessMap={denimRough}
+                  roughness={0.86}
+                  metalness={0.0}
+                />
               </mesh>
               {/* Rolled Denim Cuff */}
               <mesh position={[0, -0.37, 0]}>
                 <cylinderGeometry args={[0.058, 0.058, 0.04, 16]} />
-                <meshStandardMaterial color="#93c5fd" roughness={0.85} />
+                <meshStandardMaterial
+                  color="#93c5fd"
+                  normalMap={fabricNormal}
+                  roughness={0.88}
+                  metalness={0.0}
+                />
               </mesh>
               {/* Right Sneaker */}
               <group position={[0, -0.44, 0.04]}>
                 <mesh castShadow={enableShadows}>
                   <boxGeometry args={[0.105, 0.075, 0.22]} />
-                  <meshStandardMaterial color="#f8fafc" roughness={0.45} />
+                  <meshStandardMaterial
+                    color="#f8fafc"
+                    normalMap={leatherNormal}
+                    roughness={0.62}
+                    metalness={0.0}
+                  />
                 </mesh>
                 <mesh position={[0, -0.032, 0]}>
                   <boxGeometry args={[0.11, 0.022, 0.23]} />

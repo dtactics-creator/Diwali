@@ -147,6 +147,11 @@ export const GRAPHICS_PRESETS: Record<GraphicsQualityId, GraphicsConfig> = {
     enableDynamicLights: false,
     enableWeatherParticles: true,
     smokeDensity: 0.3,
+    enableEnvironmentMap: false,
+    environmentIntensity: 0,
+    textureAnisotropy: 1,
+    materialTextureSize: 128,
+    shadowMapSize: 512,
   },
 
   MEDIUM: {
@@ -160,6 +165,11 @@ export const GRAPHICS_PRESETS: Record<GraphicsQualityId, GraphicsConfig> = {
     enableDynamicLights: true,
     enableWeatherParticles: true,
     smokeDensity: 0.7,
+    enableEnvironmentMap: true,
+    environmentIntensity: 0.55,
+    textureAnisotropy: 4,
+    materialTextureSize: 256,
+    shadowMapSize: 1024,
   },
 
   HIGH: {
@@ -173,6 +183,11 @@ export const GRAPHICS_PRESETS: Record<GraphicsQualityId, GraphicsConfig> = {
     enableDynamicLights: true,
     enableWeatherParticles: true,
     smokeDensity: 1.0,
+    enableEnvironmentMap: true,
+    environmentIntensity: 0.85,
+    textureAnisotropy: 8,
+    materialTextureSize: 256,
+    shadowMapSize: 2048,
   },
 };
 

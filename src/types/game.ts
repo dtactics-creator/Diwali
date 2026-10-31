@@ -16,7 +16,67 @@ export type CrackerId =
   | 'chakri'
   | 'rocket'
   | 'aerial-fireworks'
-  | 'garland-cracker';
+  | 'garland-cracker'
+  | 'lakshmi'
+  | 'kuruvi'
+  | 'paper-bomb'
+  | 'single-shot'
+  | 'small-ground'
+  | 'large-ground'
+  | 'bijili';
+
+export type CrackerCategory =
+  | 'Sparkler'
+  | 'Fountain'
+  | 'Spinner'
+  | 'Aerial'
+  | 'Garland'
+  | 'Bomb'
+  | 'Ground';
+
+/** Fuse ignition sound character used by the audio system. */
+export type FuseSoundKind = 'sparkler' | 'wick' | 'fountain' | 'spinner' | 'loud';
+
+/** Continuous sound bed played while a cracker is burning. */
+export type ActiveBedKind = 'sparkler' | 'fountain' | 'spinner' | 'none';
+
+/** Launch / whistle sound for aerial crackers. */
+export type LaunchSoundKind = 'rocket' | 'shell' | 'kuruvi' | 'none';
+
+/** Explosion sound character. */
+export type BurstSoundKind = 'crack' | 'bang' | 'thunder' | 'pop' | 'whistle';
+
+/**
+ * Audio profile for a single cracker type. The audio system layers a fuse
+ * ignition sound, an optional continuous active bed, an optional launch sound
+ * and the final burst, so every cracker sounds distinct instead of sharing one
+ * generic explosion.
+ */
+export interface CrackerAudioProfile {
+  fuse: FuseSoundKind;
+  activeBed: ActiveBedKind;
+  launch: LaunchSoundKind;
+  burst: BurstSoundKind;
+}
+
+/**
+ * Paper waste behaviour for crackers that scatter paper debris on burst
+ * (paper bombs, Lakshmi crackers and other paper-wrapped traditions).
+ */
+export interface PaperDebrisProfile {
+  /** Whether this cracker emits paper waste on burst. */
+  enabled: boolean;
+  /** Number of fragments emitted per burst before quality scaling. */
+  fragmentCount: number;
+  /** Outward ejection speed of the fragments in metres/second. */
+  burstSpeed: number;
+  /** Base fragment size in metres (varied per fragment at runtime). */
+  fragmentSize: number;
+  /** Seconds that settled paper waste remains on the ground before fading. */
+  groundLifetime: number;
+  /** Paper colours used for the scattered fragments. */
+  colors: string[];
+}
 
 export type CrackerLifecycleState =
   | 'Available'
@@ -161,6 +221,16 @@ export interface GraphicsConfig {
   enableDynamicLights: boolean;
   enableWeatherParticles: boolean;
   smokeDensity: number;
+  /** Image-based lighting (PMREM room environment) for physical material response. */
+  enableEnvironmentMap: boolean;
+  /** Global strength of the IBL contribution. */
+  environmentIntensity: number;
+  /** Texture filtering budget (clamped by the device's max anisotropy). */
+  textureAnisotropy: number;
+  /** Square resolution of the generated PBR detail maps. */
+  materialTextureSize: number;
+  /** Directional shadow map resolution. */
+  shadowMapSize: number;
 }
 
 export interface CrackerEffectConfig {
@@ -182,7 +252,7 @@ export interface CrackerConfig {
   id: CrackerId;
   name: string;
   hindiName: string;
-  category: 'Sparkler' | 'Fountain' | 'Spinner' | 'Aerial' | 'Garland';
+  category: CrackerCategory;
   shortDescription: string;
   detailedDescription: string;
   modelPath: string;
@@ -193,6 +263,16 @@ export interface CrackerConfig {
   isHandheldCapable: boolean;
   accentColor: string;
   badgeText: string;
+  /** Physical bounding size of the model (width, height, depth) in metres. */
+  dimensions: [number, number, number];
+  /** Local-space offset of the ignition fuse from the model origin. */
+  fuseOffset: [number, number, number];
+  /** Relative burst power used to scale visual/audio/camera impact. */
+  explosionIntensity: number;
+  /** Layered audio profile that keeps every cracker's sound distinct. */
+  audio: CrackerAudioProfile;
+  /** Paper waste behaviour on burst. */
+  paperDebris: PaperDebrisProfile;
   effect: CrackerEffectConfig;
 }
 
@@ -215,7 +295,12 @@ export interface SimulationSettings {
   weatherEffectsEnabled: boolean;
   graphicsQuality: GraphicsQualityId;
   soundEnabled: boolean;
+  /** Master output gain (0..1). */
   soundVolume: number;
+  /** Effects bus gain (crackers, UI) (0..1). */
+  effectsVolume: number;
+  /** Ambient bus gain (rain, room tone) (0..1). */
+  ambientVolume: number;
   reducedFlash: boolean;
 }
 

@@ -1,6 +1,7 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {
   CrackerId,
   EnvironmentConfig,
@@ -9,7 +10,52 @@ import {
   TimeOfDayConfig,
   WeatherConfig,
 } from '../../types/game';
+import {
+  getSurfaceNormalMap,
+  getSurfaceRoughnessMap,
+} from '../../utils/materialTextures';
 import { CrackerMeshVisual } from './CrackerModels3D';
+
+/**
+ * Generates a PMREM image-based-lighting probe from three's built-in neutral
+ * RoomEnvironment and assigns it to the scene. This gives every
+ * meshStandardMaterial physically plausible ambient/specular response
+ * (metals pick up reflections, cloth picks up soft bounce light) without
+ * shipping an HDR file. Toggled off for the LOW preset to protect mobile GPUs.
+ */
+const SceneEnvironmentIBL: React.FC<{ enabled: boolean; intensity: number }> = ({
+  enabled,
+  intensity,
+}) => {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+
+  useEffect(() => {
+    if (!enabled) {
+      scene.environment = null;
+      return;
+    }
+    const pmrem = new THREE.PMREMGenerator(gl);
+    const room = new RoomEnvironment();
+    const renderTarget = pmrem.fromScene(room, 0.04);
+    scene.environment = renderTarget.texture;
+    scene.environmentIntensity = intensity;
+    room.dispose();
+    pmrem.dispose();
+
+    return () => {
+      if (scene.environment === renderTarget.texture) scene.environment = null;
+      renderTarget.dispose();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gl, scene, enabled]);
+
+  useEffect(() => {
+    scene.environmentIntensity = intensity;
+  }, [scene, intensity]);
+
+  return null;
+};
 
 interface SceneEnvironment3DProps {
   environment: EnvironmentConfig;
@@ -75,6 +121,50 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
     }
     return arr;
   }, []);
+
+  // Road / pavement surface detail. Textures are generated procedurally and
+  // cached globally, so all environments share the same GPU upload.
+  const groundNormalMap = useMemo(
+    () =>
+      getSurfaceNormalMap(
+        'asphalt',
+        {
+          size: graphics.materialTextureSize,
+          repeatX: 5,
+          repeatY: 3.5,
+          anisotropy: graphics.textureAnisotropy,
+        },
+        0.8
+      ),
+    [graphics.materialTextureSize, graphics.textureAnisotropy]
+  );
+
+  const groundRoughnessMap = useMemo(
+    () =>
+      getSurfaceRoughnessMap(
+        'asphalt',
+        {
+          size: graphics.materialTextureSize,
+          repeatX: 5,
+          repeatY: 3.5,
+          anisotropy: graphics.textureAnisotropy,
+        },
+        0.55
+      ),
+    [graphics.materialTextureSize, graphics.textureAnisotropy]
+  );
+
+  const groundNormalScale = useMemo(() => new THREE.Vector2(0.6, 0.6), []);
+
+  const diyaNormalMap = useMemo(
+    () =>
+      getSurfaceNormalMap(
+        'concrete',
+        { size: Math.min(128, graphics.materialTextureSize), anisotropy: graphics.textureAnisotropy },
+        0.7
+      ),
+    [graphics.materialTextureSize, graphics.textureAnisotropy]
+  );
 
   // Align camera, apply camera shake, and cinematic rocket-follow
   useFrame((state, delta) => {
@@ -203,10 +293,25 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
 
   return (
     <group>
+      {/* Image-based lighting probe for physical material response */}
+      <SceneEnvironmentIBL
+        enabled={graphics.enableEnvironmentMap}
+        intensity={graphics.environmentIntensity}
+      />
+
       {/* Dynamic Time-of-Day & Weather Lighting */}
       <ambientLight
         color={timeOfDay.ambientColor}
         intensity={timeOfDay.ambientIntensity * weather.ambientMultiplier}
+      />
+
+      {/* Sky/ground gradient fill adds natural directional ambient bounce */}
+      <hemisphereLight
+        args={[
+          timeOfDay.ambientColor,
+          timeOfDay.id === 'day' ? '#6b5a44' : '#0b0d1a',
+          timeOfDay.ambientIntensity * 0.35,
+        ]}
       />
 
       <directionalLight
@@ -214,8 +319,16 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
         color={timeOfDay.directionalColor}
         intensity={timeOfDay.directionalIntensity * weather.ambientMultiplier}
         castShadow={graphics.enableShadows}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={graphics.shadowMapSize}
+        shadow-mapSize-height={graphics.shadowMapSize}
+        shadow-camera-left={-9}
+        shadow-camera-right={9}
+        shadow-camera-top={9}
+        shadow-camera-bottom={-9}
+        shadow-camera-near={0.5}
+        shadow-camera-far={45}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
       />
 
       {/* Warm Festive Fill Lights simulating street & house diya illumination */}
@@ -259,6 +372,10 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
             color={environment.groundColor[timeOfDay.id]}
             roughness={isWet ? 0.18 : environment.groundRoughness}
             metalness={isWet ? 0.55 : 0.08}
+            normalMap={groundNormalMap}
+            normalScale={groundNormalScale}
+            roughnessMap={groundRoughnessMap}
+            envMapIntensity={graphics.enableEnvironmentMap ? 0.6 : 0.15}
             transparent
             opacity={isWet ? 0.34 : 0.16}
           />
@@ -300,6 +417,9 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
               elapsedInState={0}
               isPreview
               isValidPlacement={isValidHover}
+              textureSize={graphics.materialTextureSize}
+              anisotropy={graphics.textureAnisotropy}
+              useEnvMap={graphics.enableEnvironmentMap}
             />
           </group>
         )}
@@ -317,7 +437,13 @@ export const SceneEnvironment3D: React.FC<SceneEnvironment3DProps> = ({
               {/* Terracotta Clay Bowl */}
               <mesh position={[0, 0.025, 0]}>
                 <cylinderGeometry args={[0.075, 0.045, 0.05, 16]} />
-                <meshStandardMaterial color="#9a3412" roughness={0.75} />
+                <meshStandardMaterial
+                  color="#9a3412"
+                  roughness={0.82}
+                  metalness={0.02}
+                  normalMap={diyaNormalMap}
+                  envMapIntensity={0.4}
+                />
               </mesh>
               {/* Glowing Diya Flame */}
               {isLit && (

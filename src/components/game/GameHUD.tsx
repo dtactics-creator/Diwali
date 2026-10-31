@@ -394,6 +394,32 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 );
               })}
             </div>
+
+            {/* Audio Levels — master / effects / ambient */}
+            <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+              {(
+                [
+                  { key: 'soundVolume', label: 'M' },
+                  { key: 'effectsVolume', label: 'FX' },
+                  { key: 'ambientVolume', label: 'Amb' },
+                ] as const
+              ).map((s) => (
+                <div key={s.key} className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-amber-300/80 w-6">{s.label}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={settings[s.key]}
+                    onChange={(e) =>
+                      onUpdateSettings({ [s.key]: parseFloat(e.target.value) })
+                    }
+                    className="w-16 accent-amber-400 cursor-pointer"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Right Utility Buttons */}

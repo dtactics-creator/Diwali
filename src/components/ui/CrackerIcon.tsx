@@ -198,5 +198,135 @@ export const CrackerIcon: React.FC<CrackerIconProps> = ({
           <circle cx="51" cy="15" r="4" fill="#fef08a" />
         </svg>
       );
+
+    case 'bijili':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Sharp crack flash */}
+          <path
+            d="M32 6L36 22L50 16L40 28L54 34L38 34L42 50L32 38L22 50L26 34L10 34L24 28L14 16L28 22Z"
+            fill="#fde047"
+            stroke="#fbbf24"
+            strokeWidth="1.5"
+          />
+          {/* Crimson paper barrel */}
+          <rect x="26" y="36" width="12" height="20" rx="2" fill="#dc2626" stroke="#fca5a5" strokeWidth="1.5" />
+          <rect x="26" y="42" width="12" height="4" fill="#f5f5f4" />
+          <rect x="24" y="54" width="16" height="4" rx="1.5" fill="#d6d3d1" />
+        </svg>
+      );
+
+    case 'small-ground':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Low horizontal flash fan */}
+          <path
+            d="M8 40L22 30L32 20L42 30L56 40"
+            stroke="#fde047"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <circle cx="22" cy="30" r="2" fill="#fbbf24" />
+          <circle cx="42" cy="30" r="2" fill="#fbbf24" />
+          <circle cx="32" cy="20" r="2.5" fill="#ffffff" />
+          {/* Squat paper body */}
+          <rect x="20" y="42" width="24" height="12" rx="3" fill="#f59e0b" stroke="#fde68a" strokeWidth="1.5" />
+          <rect x="20" y="46" width="24" height="3" fill="#fef3c7" />
+          <rect x="16" y="54" width="32" height="4" rx="2" fill="#b45309" />
+        </svg>
+      );
+
+    case 'large-ground':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Big blast starburst */}
+          <path
+            d="M32 4V22M12 14L26 26M52 14L38 26M8 40H24M56 40H40"
+            stroke="#fb923c"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <circle cx="32" cy="14" r="4" fill="#fef08a" />
+          <circle cx="32" cy="14" r="2" fill="#ffffff" />
+          {/* Heavy greyboard block */}
+          <rect x="18" y="34" width="28" height="20" rx="3" fill="#ea580c" stroke="#fbbf24" strokeWidth="2" />
+          <rect x="18" y="34" width="28" height="5" fill="#fbbf24" />
+          <rect x="14" y="52" width="36" height="5" rx="2" fill="#7c2d12" />
+        </svg>
+      );
+
+    case 'paper-bomb':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Flying paper fragments */}
+          <rect x="10" y="14" width="7" height="5" rx="1" fill="#fafaf9" transform="rotate(24 13 16)" />
+          <rect x="46" y="12" width="8" height="5" rx="1" fill="#e7e5e4" transform="rotate(-18 50 14)" />
+          <rect x="44" y="30" width="6" height="4" rx="1" fill="#fca5a5" transform="rotate(40 47 32)" />
+          <rect x="12" y="30" width="6" height="4" rx="1" fill="#fbbf24" transform="rotate(-30 15 32)" />
+          {/* Rounded paper parcel */}
+          <circle cx="32" cy="38" r="13" fill="#fef3c7" stroke="#d6d3d1" strokeWidth="2" />
+          {/* Jute twine wraps */}
+          <path d="M19 38H45M25 27L39 49M39 27L25 49" stroke="#92400e" strokeWidth="2" strokeLinecap="round" />
+          {/* Top knot + fuse */}
+          <circle cx="32" cy="24" r="3" fill="#d6d3d1" />
+          <path d="M32 22C32 18 36 16 35 12" stroke="#4d7c0f" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+
+    case 'lakshmi':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Golden shower */}
+          <path
+            d="M32 22C26 12 20 10 14 12M32 22C38 12 44 10 50 12M32 22V6"
+            stroke="#fbbf24"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <circle cx="14" cy="12" r="2" fill="#4ade80" />
+          <circle cx="50" cy="12" r="2" fill="#60a5fa" />
+          <circle cx="32" cy="5" r="2.5" fill="#ffffff" />
+          {/* Gold-foil collar */}
+          <rect x="22" y="22" width="20" height="5" rx="2" fill="#fbbf24" />
+          {/* Printed conical body */}
+          <polygon points="26,27 38,27 46,52 18,52" fill="#eab308" stroke="#fde68a" strokeWidth="1.5" />
+          <polygon points="24,38 40,38 42,45 22,45" fill="#fef3c7" />
+          {/* Terracotta base */}
+          <rect x="16" y="52" width="32" height="5" rx="2" fill="#b45309" />
+        </svg>
+      );
+
+    case 'kuruvi':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Hopping arc */}
+          <path d="M10 46C18 30 34 26 44 34" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 4" />
+          {/* Folded paper wings */}
+          <path d="M30 34L14 26L30 28Z" fill="#22c55e" stroke="#86efac" strokeWidth="1.5" />
+          <path d="M34 34L50 26L34 28Z" fill="#4ade80" stroke="#86efac" strokeWidth="1.5" />
+          {/* Spinner hub */}
+          <circle cx="32" cy="33" r="6" fill="#fde047" stroke="#fbbf24" strokeWidth="1.5" />
+          <circle cx="32" cy="33" r="2" fill="#ffffff" />
+          {/* Whistle sparks */}
+          <circle cx="48" cy="22" r="2" fill="#fde047" />
+          <circle cx="18" cy="22" r="2" fill="#38bdf8" />
+        </svg>
+      );
+
+    case 'single-shot':
+      return (
+        <svg viewBox="0 0 64 64" fill="none" className={className}>
+          {/* Shell streaking up */}
+          <path d="M34 30C36 20 34 12 32 4" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" strokeDasharray="4 3" />
+          <circle cx="32" cy="6" r="4" fill="#fbbf24" />
+          <circle cx="32" cy="6" r="2" fill="#ffffff" />
+          {/* Gold-foil mortar tube */}
+          <rect x="24" y="32" width="16" height="22" rx="3" fill="#eab308" stroke="#fde68a" strokeWidth="1.5" />
+          <rect x="22" y="38" width="20" height="3" rx="1.5" fill="#fef3c7" />
+          <rect x="22" y="46" width="20" height="3" rx="1.5" fill="#fef3c7" />
+          {/* Braced square base */}
+          <polygon points="20,54 44,54 48,60 16,60" fill="#a16207" />
+        </svg>
+      );
   }
 };
